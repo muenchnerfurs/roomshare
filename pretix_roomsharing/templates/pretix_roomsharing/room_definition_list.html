@@ -1,0 +1,54 @@
+{% extends "pretixcontrol/event/base.html" %}
+{% load i18n %}
+{% load eventurl %}
+{% load urlreplace %}
+{% load bootstrap3 %}
+{% block title %}{% trans "Room Definitions" %}{% endblock %}
+{% block content %}
+    <h1>{% trans "Room Definitions" %}</h1>
+    <p>
+        Bottom text
+    </p>
+    {% csrf_token %}
+    <p>
+        <a href="{% url "plugins:pretix_roomsharing:event.room_definition.add" organizer=request.event.organizer.slug event=request.event.slug %}" class="btn btn-default"><i class="fa fa-plus"></i> {% trans "Create a new room definition" %}
+        </a>
+    </p>
+    <div class="table-responsive">
+        <table class="table table-hover table-quotas">
+            <thead>
+            <tr>
+                <th>{% trans "Name" %}</th>
+                <th>{% trans "Capacity" %}</th>
+                <th>{% trans "Room Count" %}</th>
+                <th>{% trans "Max Rooms" %}</th>
+                <th class="action-col-2"></th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for d in room_definitions %}
+                <tr>
+                    <td>
+                        <strong>
+                            {{ d.name }}
+                        </strong>
+                    </td>
+                    <td>
+                        {{ d.capacity }}
+                    </td>
+                    <td>
+                        {{ d.room_count }}
+                    </td>
+                    <td>
+                        {{ d.max_rooms }}
+                    </td>
+                    <td class="text-right flip">
+                        <a href="{% url "plugins:pretix_roomsharing:event.room_definition.edit" organizer=request.event.organizer.slug event=request.event.slug pk=d.pk %}" class="btn btn-default btn-sm"><i class="fa fa-edit"></i></a>
+                        <a href="{% url "plugins:pretix_roomsharing:event.room_definition.delete" organizer=request.event.organizer.slug event=request.event.slug pk=d.pk %}" class="btn btn-danger btn-sm"><i class="fa fa-trash"></i></a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

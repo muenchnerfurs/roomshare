@@ -3,13 +3,37 @@ from django.utils.translation import gettext_lazy as _
 from pretix.base.models import LoggedModel
 
 
+class RoomDefinition(LoggedModel):
+    event = models.ForeignKey(
+        "pretixbase.Event", on_delete=models.CASCADE, related_name="room_definitions"
+    )
+    items = models.ManyToManyField(
+        "pretixbase.Item",
+        related_name='room_definitions',
+        verbose_name=_("Products"),
+        blank=True,
+    )
+    name = models.CharField(max_length=255)
+    capacity = models.PositiveIntegerField()
+    max_rooms = models.PositiveIntegerField() # TODO: Use a quota here?
+
+    class Meta:
+        unique_together = (("event", "name"),)
+        ordering = ("name",)
+
+    def is_available(self) -> bool:
+        return Room.objects.filter(room_definition=self).count() < self.max_rooms
+
+
 class Room(LoggedModel):
     event = models.ForeignKey(
         "pretixbase.Event", on_delete=models.CASCADE, related_name="rooms"
     )
+    room_definition = models.ForeignKey(
+        RoomDefinition, on_delete=models.CASCADE, related_name="rooms"
+    )
     name = models.CharField(max_length=190)
     password = models.CharField(max_length=190, blank=True)
-    created = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = (("event", "name"),)

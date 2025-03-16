@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.db.models import Count, Exists, OuterRef
 from django.forms.widgets import CheckboxSelectMultiple
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.decorators import method_decorator
@@ -22,13 +22,15 @@ from pretix.base.forms import SettingsForm
 from pretix.base.models import Event, Order, OrderPosition, OrderRefund
 from pretix.base.views.metrics import unauthed_response
 from pretix.control.permissions import EventPermissionRequiredMixin
-from pretix.control.views import UpdateView
+from pretix.control.views import UpdateView, CreateView
 from pretix.control.views.event import EventSettingsFormView, EventSettingsViewMixin
 from pretix.control.views.orders import OrderView
 from pretix.helpers.compat import CompatDeleteView
 from pretix.multidomain.urlreverse import eventreverse
 from pretix.presale.views import EventViewMixin
 from pretix.presale.views.order import OrderDetailMixin
+
+from .forms import RoomDefinitionForm
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +73,7 @@ class SettingsView(EventSettingsViewMixin, EventSettingsFormView):
 
 
 from .checkoutflow import RoomCreateForm, RoomJoinForm
-from .models import OrderRoom, Room
+from .models import OrderRoom, Room, RoomDefinition
 
 
 class RoomChangePasswordForm(forms.Form):
@@ -99,6 +101,10 @@ class OrderRoomChange(EventViewMixin, OrderDetailMixin, TemplateView):
             raise Http404(
                 _("Unknown order code or not authorized to access this order.")
             )
+
+        if not any(p.item.room_definitions.count() != 0 for p in self.order.positions.all()):
+            messages.error(request, _("Your order is not eligible for a room change."))
+            return redirect(self.get_order_url())
 
         if not self.order.can_modify_answers:
             messages.error(request, _("The room for this order cannot be changed."))
@@ -241,11 +247,6 @@ class OrderRoomChange(EventViewMixin, OrderDetailMixin, TemplateView):
             ctx["selected"] = self.request.POST.get("room_mode", "none")
 
         return ctx
-
-    def dispatch(self, request, *args, **kwargs):
-        self.request = request
-
-        return super().dispatch(request, *args, **kwargs)
 
 
 class ControlRoomForm(forms.ModelForm):
@@ -392,6 +393,112 @@ class RoomDelete(EventPermissionRequiredMixin, CompatDeleteView):
                 },
             )
         )
+
+
+class RoomDefinitionList(EventPermissionRequiredMixin, ListView):
+    permission = "can_change_event_settings"
+    template_name = "pretix_roomsharing/room_definition_list.html"
+    context_object_name = "room_definitions"
+    paginate_by = 25
+
+    def get_queryset(self):
+        return self.request.event.room_definitions.all()
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data()
+
+        for room_definition in ctx['room_definitions']:
+            room_definition.room_count = Room.objects.filter(room_definition=room_definition.id).count()
+
+        return ctx
+
+
+class RoomDefinitionCreate(EventPermissionRequiredMixin, CreateView):
+    model = RoomDefinition
+    form_class = RoomDefinitionForm
+    permission = "can_change_event_settings"
+    template_name = "pretix_roomsharing/room_definition_edit.html"
+    context_object_name = "room_definition"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['instance'] = RoomDefinition(event=self.request.event)
+        return kwargs
+
+    def get_success_url(self) -> str:
+        return reverse('plugins:pretix_roomsharing:event.room_definition.list', kwargs={
+            'organizer': self.request.event.organizer.slug,
+            'event': self.request.event.slug,
+        })
+
+    def form_invalid(self, form):
+        messages.error(self.request, _('We could not save your changes. See below for details.'))
+        return super().form_invalid(form)
+
+    @transaction.atomic
+    def form_valid(self, form):
+        form.instance.event = self.request.event
+        messages.success(self.request, _('The new room definition has been created.'))
+        ret = super().form_valid(form)
+        form.instance.log_action('pretix_roomsharing.room_definition.added', user=self.request.user, data=dict(form.cleaned_data))
+
+        return ret
+
+
+class RoomDefinitionUpdate(EventPermissionRequiredMixin, UpdateView):
+    model = RoomDefinition
+    form_class = RoomDefinitionForm
+    permission = "can_change_event_settings"
+    template_name = "pretix_roomsharing/room_definition_edit.html"
+    context_object_name = "room_definition"
+
+    def get_success_url(self) -> str:
+        return reverse('plugins:pretix_roomsharing:event.room_definition.list', kwargs={
+            'organizer': self.request.event.organizer.slug,
+            'event': self.request.event.slug,
+        })
+
+    def get_object(self, queryset=None) -> RoomDefinition:
+        try:
+            return self.request.event.room_definitions.get(
+                id=self.kwargs['pk']
+            )
+        except RoomDefinition.DoesNotExist:
+            raise Http404(_("The requested room definition does not exist."))
+
+    def form_invalid(self, form):
+        messages.error(self.request, _('We could not save your changes. See below for details.'))
+        return super().form_invalid(form)
+
+
+class RoomDefinitionDelete(EventPermissionRequiredMixin, CompatDeleteView):
+    model = RoomDefinition
+    permission = "can_change_event_settings"
+    template_name = "pretix_roomsharing/room_definition_delete.html"
+    context_object_name = "room_definition"
+
+    def get_success_url(self) -> str:
+        return reverse('plugins:pretix_roomsharing:event.room_definition.list', kwargs={
+            'organizer': self.request.event.organizer.slug,
+            'event': self.request.event.slug,
+        })
+
+    def get_object(self, queryset=None) -> RoomDefinition:
+        try:
+            return self.request.event.room_definitions.get(
+                id=self.kwargs['pk']
+            )
+        except RoomDefinition.DoesNotExist:
+            raise Http404(_("The requested room definition does not exist."))
+
+    @transaction.atomic
+    def delete(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        success_url = self.get_success_url()
+        self.object.log_action('pretix_roomsharing.room_definition.deleted', user=self.request.user)
+        self.object.delete()
+        messages.success(request, _('The selected room definition has been deleted.'))
+        return HttpResponseRedirect(success_url)
 
 
 class StatsMixin:

@@ -1,0 +1,21 @@
+{% extends "pretixcontrol/event/base.html" %}
+{% load i18n %}
+{% load eventurl %}
+{% load urlreplace %}
+{% load bootstrap3 %}
+{% block title %}{% trans "Delete Room Definitions" %}{% endblock %}
+{% block content %}
+	<h1>{% trans "Delete Room Definitions" %}</h1>
+	<form action="" method="post" class="form-horizontal">
+		{% csrf_token %}
+		<p>{% blocktrans trimmed with name=room_definition.name %}Are you sure you want to delete the room definition <strong>{{ name }}</strong>?{% endblocktrans %}</p>
+		<div class="form-group submit-group">
+            <a href="{% url "plugins:pretix_roomsharing:event.room_definition.list" organizer=request.event.organizer.slug event=request.event.slug %}" class="btn btn-default btn-cancel">
+                {% trans "Cancel" %}
+            </a>
+            <button type="submit" class="btn btn-danger btn-save">
+                {% trans "Delete Room Definitions" %}
+            </button>
+		</div>
+	</form>
+{% endblock %}

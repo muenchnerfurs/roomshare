@@ -21,6 +21,7 @@ from pretix.presale.signals import (
     order_info,
     order_meta_from_request,
 )
+from pretix.presale.views import get_cart
 from pretix.presale.views.cart import cart_session
 
 from .checkoutflow import RoomStep
@@ -84,6 +85,9 @@ def placed_order(sender: Event, order: Order, **kwargs):
 
 @receiver(checkout_confirm_page_content, dispatch_uid="room_confirm")
 def confirm_page(sender: Event, request: HttpRequest, **kwargs):
+    if not any(p.item.room_definitions.count() != 0 for p in list(get_cart(request))):
+        return
+
     cs = cart_session(request)
 
     template = get_template("pretix_roomsharing/checkout_confirm.html")
@@ -106,6 +110,9 @@ def confirm_page(sender: Event, request: HttpRequest, **kwargs):
 
 @receiver(order_info, dispatch_uid="room_order_info")
 def order_info(sender: Event, order: Order, **kwargs):
+    if not any(p.item.room_definitions.count() != 0 for p in order.positions.all()):
+        return
+
     template = get_template("pretix_roomsharing/order_info.html")
 
     ctx = {
@@ -188,7 +195,7 @@ def control_nav_event(sender, request=None, **kwargs):
         return []
     return [
         {
-            "label": _("Rooms"),
+            "label": _("Room Sharing"),
             "url": reverse(
                 "plugins:pretix_roomsharing:event.room.list",
                 kwargs={
@@ -196,11 +203,32 @@ def control_nav_event(sender, request=None, **kwargs):
                     "organizer": request.event.organizer.slug,
                 },
             ),
-            "active": (
-                url.namespace == "plugins:pretix_roomsharing"
-                and "rooms" in url.url_name
-            ),
+            "active": False,
             "icon": "group",
+            'children': [
+                {
+                    'label': _('Rooms'),
+                    'url': reverse('plugins:pretix_roomsharing:event.room.list', kwargs={
+                        'event': request.event.slug,
+                        'organizer': request.event.organizer.slug,
+                    }),
+                    'active': (
+                            url.namespace == 'plugins:pretix_roomsharing'
+                            and 'event.room.' in url.url_name
+                    ),
+                },
+                {
+                    'label': _('Room Definitions'),
+                    'url': reverse('plugins:pretix_roomsharing:event.room_definition.list', kwargs={
+                        'event': request.event.slug,
+                        'organizer': request.event.organizer.slug,
+                    }),
+                    'active': (
+                            url.namespace == 'plugins:pretix_roomsharing'
+                            and 'event.room_definition.' in url.url_name
+                    ),
+                },
+            ]
         }
     ]
 

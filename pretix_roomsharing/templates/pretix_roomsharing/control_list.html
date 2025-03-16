@@ -20,6 +20,7 @@
                 <thead>
                 <tr>
                     <th>{% trans "Room name" %}</th>
+                    <th>{% trans "Room definition" %}</th>
                     <th></th>
                 </tr>
                 </thead>
@@ -32,6 +33,9 @@
                                     {{ c.name }}
                                 </a>
                             </strong>
+                        </td>
+                        <td>
+                            {{ c.room_definition.name }}
                         </td>
                         <td class="text-right">
                             <a href="{% url "plugins:pretix_roomsharing:event.room.detail" event=request.event.slug organizer=request.event.organizer.slug pk=c.pk %}" class="btn btn-default">

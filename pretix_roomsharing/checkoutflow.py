@@ -9,7 +9,7 @@ from pretix.presale.checkoutflow import TemplateFlowStep
 from pretix.presale.views import CartMixin, get_cart
 from pretix.presale.views.cart import cart_session
 
-from .models import Room
+from .models import Room, RoomDefinition
 
 
 class RoomCreateForm(forms.Form):
@@ -21,6 +21,7 @@ class RoomCreateForm(forms.Form):
         "required": _("This field is required."),
     }
 
+    room_definition = forms.ChoiceField(label=_("Room Type"), required=False)
     name = forms.CharField(
         max_length=190,
         label=_("Room name"),
@@ -33,7 +34,15 @@ class RoomCreateForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.event = kwargs.pop("event")
         self.room = kwargs.pop("current", None)
+        self.room_definitions = kwargs.pop("room_definitions", None)
         super().__init__(*args, **kwargs)
+        self.fields['room_definition'].choices = self.room_definitions
+        if self.room_definitions:
+            self.fields['room_definition'].initial = self.room_definitions[0][0]
+            self.fields['room_definition'].disabled = len(self.room_definitions) == 1
+        else:
+            self.fields['room_definition'].initial = ("", "")
+            self.fields['room_definition'].disabled = True
 
     def clean_name(self):
         name = self.cleaned_data.get("name")
@@ -151,7 +160,7 @@ class RoomStep(CartMixin, TemplateFlowStep):
                 self.cart_session["room_join"] = self.join_form.cleaned_data["room"].pk
                 return redirect(self.get_next_url(request))
 
-        elif self.cart_session["room_mode"] == "create":
+        elif self.cart_session["room_mode"] == "create" and  len(self.available_room_definitions) > 0:
             if self.create_form.is_valid():
                 room = Room(
                     event=self.event,
@@ -166,6 +175,7 @@ class RoomStep(CartMixin, TemplateFlowStep):
 
                 room.name = self.create_form.cleaned_data["name"]
                 room.password = self.create_form.cleaned_data["password"]
+                room.room_definition = RoomDefinition.objects.get(pk=self.create_form.cleaned_data["room_definition"])
                 room.save()
                 self.cart_session["room_create"] = room.pk
                 return redirect(self.get_next_url(request))
@@ -201,6 +211,7 @@ class RoomStep(CartMixin, TemplateFlowStep):
             prefix="create",
             initial=initial,
             current=current,
+            room_definitions=self.available_room_definitions,
             data=self.request.POST
             if self.request.method == "POST"
             and self.request.POST.get("room_mode") == "create"
@@ -238,6 +249,12 @@ class RoomStep(CartMixin, TemplateFlowStep):
     def cart_session(self):
         return cart_session(self.request)
 
+    @cached_property
+    def available_room_definitions(self):
+        items = [position.item for position in self.positions]
+        room_definitions = (definition for item in items for definition in item.room_definitions.all())
+        return [(definition.id, definition.name) for definition in room_definitions if definition.is_available()]
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["create_form"] = self.create_form
@@ -253,6 +270,7 @@ class RoomStep(CartMixin, TemplateFlowStep):
                 order_has_room = True
 
         ctx["order_has_room"] = order_has_room
+        ctx["create_disabled"] = len(self.available_room_definitions) == 0
         return ctx
 
     def is_completed(self, request, warn=False):
@@ -306,4 +324,9 @@ class RoomStep(CartMixin, TemplateFlowStep):
         return "room_mode" in cart_session(request)
 
     def is_applicable(self, request):
-        return True
+        self.request = request
+        return self.has_applicable_positions
+
+    @cached_property
+    def has_applicable_positions(self):
+        return any(p.item.room_definitions.count() != 0 for p in self.positions)
