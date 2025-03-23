@@ -7,9 +7,9 @@ from django.utils.translation import gettext_lazy as _, pgettext_lazy
 from pretix.base.models import SubEvent
 from pretix.presale.checkoutflow import TemplateFlowStep
 from pretix.presale.views import CartMixin, get_cart
-from pretix.presale.views.cart import cart_session
+from pretix.presale.views.cart import cart_session, get_or_create_cart_id
 
-from .models import Room, RoomDefinition
+from .models import Room, RoomDefinition, OrderRoom
 
 
 class RoomCreateForm(forms.Form):
@@ -149,44 +149,92 @@ class RoomStep(CartMixin, TemplateFlowStep):
     icon = "group"
     label = pgettext_lazy("checkoutflow", "Room")
 
-    @atomic
     def post(self, request):
         self.request = request
 
-        self.cart_session["room_mode"] = request.POST.get("room_mode", "")
+        if not self.has_applicable_positions:
+            return self.render()
 
-        if self.cart_session["room_mode"] == "join":
-            if self.join_form.is_valid():
-                self.cart_session["room_join"] = self.join_form.cleaned_data["room"].pk
-                return redirect(self.get_next_url(request))
+        room_mode = self.cart_session["room_mode"] = request.POST.get("room_mode", "none")
 
-        elif self.cart_session["room_mode"] == "create" and  len(self.available_room_definitions) > 0:
-            if self.create_form.is_valid():
-                room = Room(
-                    event=self.event,
-                )
-                if self.cart_session.get("room_create"):
-                    try:
-                        room = Room.objects.get(
-                            event=self.event, pk=self.cart_session["room_create"]
-                        )
-                    except Room.DoesNotExist:
-                        pass
-
-                room.name = self.create_form.cleaned_data["name"]
-                room.password = self.create_form.cleaned_data["password"]
-                room.room_definition = RoomDefinition.objects.get(pk=self.create_form.cleaned_data["room_definition"])
-                room.save()
-                self.cart_session["room_create"] = room.pk
-                return redirect(self.get_next_url(request))
-        elif self.cart_session["room_mode"] == "none":
-            return redirect(self.get_next_url(request))
+        if room_mode == "join" and self.join_form.is_valid():
+            return self.post_room_join(request)
+        elif room_mode == "create" and self.create_form.is_valid():
+            return self.post_room_create(request)
+        elif room_mode == "none":
+            return self.post_room_none(request)
 
         messages.error(
             self.request,
             _("We couldn't handle your input, please check below for errors."),
         )
         return self.render()
+
+    @atomic
+    def post_room_none(self, request):
+        if pk := self.cart_session.get("room_join"):
+            try:
+                OrderRoom.objects.get(event=self.event, pk=pk).delete()
+            except OrderRoom.DoesNotExist:
+                pass
+
+        return redirect(self.get_next_url(request))
+
+    @atomic
+    def post_room_join(self, request):
+        order_room = None
+        if pk := self.cart_session.get("room_join"):
+            try:
+                order_room = OrderRoom.objects.get(event=self.event, pk=pk)
+            except OrderRoom.DoesNotExist:
+                pass
+
+        cleaned_data = self.join_form.cleaned_data
+        room = cleaned_data["room"]
+
+        if order_room and order_room.room.pk == room.pk:
+            return redirect(self.get_next_url(request))
+
+        if not room.has_capacity():
+            messages.error(
+                self.request,
+                _("The chosen room is already full. Please choose another one."),
+            )
+            return self.render()
+
+        if order_room:
+            order_room.room = room
+            order_room.save()
+            room.touch()
+        else:
+            order_room = OrderRoom.objects.create(cart_id=get_or_create_cart_id(request), room=room, is_admin=False)
+
+        self.cart_session["room_join"] = order_room.pk
+        return redirect(self.get_next_url(request))
+
+    @atomic
+    def post_room_create(self, request):
+        room_definition = RoomDefinition.objects.get(event=self.event, pk=int(self.create_form.cleaned_data["room_definition"]))
+        if not room_definition.is_available():
+            messages.error(
+                self.request,
+                _("No more rooms of this type available. Please choose another one."),
+            )
+            return self.render()
+
+        if pk := self.cart_session.get("room_join"):
+            try:
+                OrderRoom.objects.get(event=self.event, pk=pk).delete()
+            except OrderRoom.DoesNotExist:
+                pass
+
+        cleaned_data = self.create_form.cleaned_data
+        room = Room.objects.create(event=self.event, room_definition=room_definition, name=cleaned_data["name"], password=cleaned_data["password"])
+        order_room = OrderRoom.objects.create(order=None, cart_id=get_or_create_cart_id(request), room=room, is_admin=True)
+
+        self.cart_session["room_create"] = room.pk
+        self.cart_session["room_join"] = order_room.pk
+        return redirect(self.get_next_url(request))
 
     @cached_property
     def create_form(self):

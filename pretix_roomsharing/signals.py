@@ -1,6 +1,8 @@
 # Register your receivers here
 import logging
 from django import forms
+from django.db import transaction
+from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from django.http import HttpRequest
 from django.template.loader import get_template
@@ -8,7 +10,7 @@ from django.urls import resolve, reverse
 from django.utils.translation import gettext_lazy as _
 from pretix.base.models import Event, Order, OrderPosition
 from pretix.base.settings import settings_hierarkey
-from pretix.base.signals import logentry_display, order_placed
+from pretix.base.signals import logentry_display, order_placed, order_canceled
 from pretix.control.forms.filter import FilterForm
 from pretix.control.signals import (
     nav_event,
@@ -66,21 +68,21 @@ def order_meta_signal(sender: Event, request: HttpRequest, **kwargs):
 
 @receiver(order_placed, dispatch_uid="room_order_placed")
 def placed_order(sender: Event, order: Order, **kwargs):
-    if order.meta_info_data and order.meta_info_data.get("room_mode") == "create":
+    if order.meta_info_data and order.meta_info_data.get("room_mode") in ["create", "join"]:
         try:
-            c = sender.rooms.get(pk=order.meta_info_data["room_create"])
-        except Room.DoesNotExist:
-            logger.error("Room did not exist in room creation, can't add user to room")
+            order_room = OrderRoom.objects.get(pk=order.meta_info_data["room_join"])
+        except OrderRoom.DoesNotExist:
+            logger.error("OrderRoom did not exist, can't update OrderRoom")
             return
         else:
-            c.orderrooms.create(order=order, is_admin=True)
-    elif order.meta_info_data and order.meta_info_data.get("room_mode") == "join":
-        try:
-            c = sender.rooms.get(pk=order.meta_info_data["room_join"])
-        except Room.DoesNotExist:
-            return
-        else:
-            c.orderrooms.create(order=order, is_admin=False)
+            order_room.order = order
+            order_room.cart_id = None
+            order_room.save()
+
+
+@receiver(order_canceled, dispatch_uid="room_order_canceled")
+def cancel_order(sender: Event, order: Order, **kwargs):
+    OrderRoom.objects.get(order=order).delete()
 
 
 @receiver(checkout_confirm_page_content, dispatch_uid="room_confirm")
@@ -95,15 +97,10 @@ def confirm_page(sender: Event, request: HttpRequest, **kwargs):
         "mode": cs.get("room_mode"),
         "request": request,
     }
-    if cs.get("room_mode") == "join":
+    if cs.get("room_mode") in ["create", "join"]:
         try:
-            ctx["room"] = sender.rooms.get(pk=cs.get("room_join"))
-        except Room.DoesNotExist:
-            return
-    elif cs.get("room_mode") == "create":
-        try:
-            ctx["room"] = sender.rooms.get(pk=cs.get("room_create"))
-        except Room.DoesNotExist:
+            ctx["room"] = OrderRoom.objects.get(pk=cs.get("room_join")).room
+        except OrderRoom.DoesNotExist:
             return
     return template.render(ctx)
 
@@ -231,6 +228,13 @@ def control_nav_event(sender, request=None, **kwargs):
             ]
         }
     ]
+
+
+@receiver(post_delete, sender=OrderRoom)
+def post_order_room_delete(sender, instance, *args, **kwargs):
+    with transaction.atomic():
+        if instance.room:
+            instance.room.touch()
 
 
 class RoomSearchForm(FilterForm):

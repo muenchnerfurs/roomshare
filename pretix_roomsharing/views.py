@@ -170,6 +170,13 @@ class OrderRoomChange(EventViewMixin, OrderDetailMixin, TemplateView):
         elif mode == "join":
             if self.join_form.is_valid():
                 room = self.join_form.cleaned_data["room"]
+                if not room.has_capacity():
+                    messages.error(
+                        self.request,
+                        _("This room is full. Please choose another or create a new one."),
+                    )
+                    return self.get(request, *args, **kwargs)
+
                 OrderRoom.objects.create(room=room, order=self.order)
                 self.order.log_action(
                     "pretix_roomsharing.order.joined", data={"room": room.pk}
@@ -371,18 +378,18 @@ class RoomDelete(EventPermissionRequiredMixin, CompatDeleteView):
 
     @transaction.atomic
     def delete(self, request, *args, **kwargs):
-        o = self.object = self.get_object()
-        o.log_action(
-            "pretix_roomsharing.room.deleted", data={"name": o.name}, user=request.user
+        room = self.object = self.get_object()
+        room.log_action(
+            "pretix_roomsharing.room.deleted", data={"name": room.name}, user=request.user
         )
-        for oc in self.object.orderrooms.select_related("order"):
-            oc.order.log_action(
+        for order_room in room.orderrooms.select_related("order"):
+            order_room.order.log_action(
                 "pretix_roomsharing.order.deleted",
-                data={"room": o.pk},
+                data={"room": room.pk},
                 user=request.user,
             )
-            oc.delete()
-        o.delete()
+            order_room.delete()
+
         messages.success(self.request, _("The room has been deleted."))
         return redirect(
             reverse(
