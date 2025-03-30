@@ -4,17 +4,12 @@
 {% block title %} {% trans "Roomsharing Settings" %} {% endblock %}
 {% block inside %}
   <h1>{% trans "Roomsharing Settings" %}</h1>
-   <p>{% trans "You can setup the roomsharing feature here." %}</p>
     <form action="" method="post" class="form-horizontal" enctype="multipart/form-data">
         {% csrf_token %}
-        <fieldset>
-            {% bootstrap_form_errors form %}
-            <p>{% trans "Selecting a product here requires room shares to be the same product. You can get around this by using bundled products and selecting one of those here." %}</p>
-            {% bootstrap_field form.roomsharing__products layout="control" %}
-        </fieldset>
         <div class="form-group submit-group">
             <button type="submit" class="btn btn-primary btn-save">
-                {% trans "Save" %}
+                <span class="fa fa-random" aria-hidden="true"></span>
+                {% trans "Assign random rooms" %}
             </button>
         </div>
     </form>

@@ -23,8 +23,14 @@ class RoomDefinition(LoggedModel):
         unique_together = (("event", "name"),)
         ordering = ("name",)
 
+    def get_valid_room_count(self):
+        return OrderRoom.objects.filter(room__room_definition=self).filter((Q(cart_id__isnull=False) & Exists(
+            CartPosition.objects.filter(event=self.event, cart_id=OuterRef("cart_id"),
+                                        item__in=self.items.all(), expires__gt=now()))) | Q(
+            order__status__in=[Order.STATUS_PENDING, Order.STATUS_PAID])).values_list("room__id", flat=True).distinct().count()
+
     def is_available(self) -> bool:
-        return Room.objects.filter(room_definition=self).count() < self.max_rooms
+        return self.get_valid_room_count() < self.max_rooms
 
 
 class Room(LoggedModel):
@@ -45,13 +51,16 @@ class Room(LoggedModel):
         return self.name
 
     def has_capacity(self):
-        return self.get_valid_rooms().count() < self.room_definition.max_rooms
+        return self.get_valid_room_orders().count() < self.room_definition.max_rooms
 
     def touch(self):
-        order_rooms = self.get_valid_rooms()
+        order_rooms = self.get_valid_room_orders()
 
         if order_rooms.count() == 0:
-            self.delete()
+            try:
+                self.delete()
+            except Room.DoesNotExist:
+                pass
             return
 
         if not order_rooms.filter(is_admin=True).exists():
@@ -59,7 +68,7 @@ class Room(LoggedModel):
             order_room.is_admin = True
             order_room.save()
 
-    def get_valid_rooms(self):
+    def get_valid_room_orders(self):
         # OrderRoom belongs to this Room && (
         #   (There are CartPositions which (belong to the same event as this Room && belong to the same cart as OrderRoom && grant access to this room && is not expired)) ||
         #   OrderRoom.order is either STATUS_PENDING or STATUS_PAID
@@ -68,6 +77,9 @@ class Room(LoggedModel):
             CartPosition.objects.filter(event=self.event, cart_id=OuterRef("cart_id"),
                                         item__in=self.room_definition.items.all(), expires__gt=now()))) | Q(
             order__status__in=[Order.STATUS_PENDING, Order.STATUS_PAID]))
+
+    def is_valid(self) -> bool:
+        return self.get_valid_room_orders().count() != 0
 
 
 class OrderRoom(models.Model):
@@ -85,7 +97,7 @@ class OrderRoom(models.Model):
 
     def is_valid(self):
         if self.cart_id:
-            return OrderPosition.objects.filter(cart_id=self.cart_id, expires__gt=now()).exist()
+            return CartPosition.objects.filter(cart_id=self.cart_id, expires__gt=now()).exists()
         else:
             return self.order.status in [Order.STATUS_PENDING, Order.STATUS_PAID]
 

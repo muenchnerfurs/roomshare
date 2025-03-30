@@ -2,15 +2,17 @@
 import logging
 from django import forms
 from django.db import transaction
+from django.db.models import QuerySet
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from django.http import HttpRequest
 from django.template.loader import get_template
 from django.urls import resolve, reverse
 from django.utils.translation import gettext_lazy as _
-from pretix.base.models import Event, Order, OrderPosition
+from pretix.base.models import Event, Order, OrderPosition, CartPosition
+from pretix.base.services.orders import OrderError
 from pretix.base.settings import settings_hierarkey
-from pretix.base.signals import logentry_display, order_placed, order_canceled
+from pretix.base.signals import logentry_display, order_placed, order_canceled, validate_order
 from pretix.control.forms.filter import FilterForm
 from pretix.control.signals import (
     nav_event,
@@ -119,12 +121,8 @@ def order_info(sender: Event, order: Order, **kwargs):
 
     # Show link for user to change room
     order_has_room = False
-    for orderPosition in order.positions.all():
-        if (
-            str(orderPosition.item.id)
-            in sender.settings.roomsharing__products
-        ):
-            order_has_room = True
+    if order.meta_info_data["room_mode"] in ["create", "join", "none"]:
+        order_has_room = True
     ctx["order_has_room"] = order_has_room
 
     # Show current room details
@@ -237,6 +235,46 @@ def post_order_room_delete(sender, instance, *args, **kwargs):
             instance.room.touch()
 
 
+@receiver(validate_order, dispatch_uid="room_validate_order")
+def room_validate_order(sender: Event, payments, positions: QuerySet[CartPosition], email, locale, invoice_address, meta_info, customer, **kwargs):
+    room_create = meta_info.get("room_create", None)
+    room = None
+    try:
+        room = Room.objects.get(pk=room_create)
+    except Room.DoesNotExist:
+        pass
+
+    if room and not room.is_valid():
+        raise OrderError(_("Invalid room."))
+
+    room_join = meta_info.get("room_join", None)
+    order_room = None
+    try:
+        order_room = OrderRoom.objects.get(pk=room_join)
+    except OrderRoom.DoesNotExist:
+        pass
+
+    if order_room:
+        if not order_room.is_valid():
+            raise OrderError(_("Invalid order room."))
+        elif not positions.filter(item__in=order_room.room.room_definition.items.all()).exists():
+            raise OrderError(_("Inconsistent data."))
+
+    room_mode = meta_info.get("room_mode", None)
+    match room_mode:
+        case "join":
+            if room_create or not room_join:
+                raise OrderError(_("Inconsistent data."))
+        case "create":
+            if not room_create or not room_join:
+                raise OrderError(_("Inconsistent data."))
+        case "none" | None:
+            if room_create or room_join:
+                raise OrderError(_("Inconsistent data."))
+        case _:
+            raise OrderError(_("Invalid room mode."))
+
+
 class RoomSearchForm(FilterForm):
     room_name = forms.CharField(
         label=_("Room name"), required=False, help_text=_("Exact matches only")
@@ -268,5 +306,3 @@ try:
 
 except ImportError:
     pass
-
-settings_hierarkey.add_default('roomsharing__products', None, list)

@@ -51,11 +51,8 @@ class RoomCreateForm(forms.Form):
                 self.error_messages["required"], code="required"
             )
 
-        if (
-            Room.objects.filter(event=self.event, name=name)
-            .exclude(pk=(self.room.pk if self.room else 0))
-            .exists()
-        ):
+        room = Room.objects.filter(event=self.event, name=name).exclude(pk=(self.room.pk if self.room else 0))
+        if room.exists() and room.first().is_valid():
             raise forms.ValidationError(
                 self.error_messages["duplicate_name"], code="duplicate_name"
             )
@@ -129,14 +126,22 @@ class RoomJoinForm(forms.Form):
                 },
                 code="room_not_found",
             )
-        else:
-            if room.password != password:
-                raise forms.ValidationError(
-                    {
-                        "password": self.error_messages["pw_mismatch"],
-                    },
-                    code="pw_mismatch",
-                )
+
+        if not room.is_valid():
+            raise forms.ValidationError(
+                {
+                    "name": self.error_messages["room_not_found"],
+                },
+                code="room_not_found",
+            )
+
+        if room.password != password:
+            raise forms.ValidationError(
+                {
+                    "password": self.error_messages["pw_mismatch"],
+                },
+                code="pw_mismatch",
+            )
 
         self.cleaned_data["room"] = room
         return self.cleaned_data
@@ -155,7 +160,12 @@ class RoomStep(CartMixin, TemplateFlowStep):
         if not self.has_applicable_positions:
             return self.render()
 
-        room_mode = self.cart_session["room_mode"] = request.POST.get("room_mode", "none")
+        previous_room_mode = self.cart_session.get("room_mode", "none")
+        room_mode = request.POST.get("room_mode", "none")
+        if room_mode == "nochange":
+            self.cart_session["room_mode"] = previous_room_mode
+        else:
+            self.cart_session["room_mode"] = room_mode
 
         if room_mode == "join" and self.join_form.is_valid():
             return self.post_room_join(request)
@@ -163,6 +173,8 @@ class RoomStep(CartMixin, TemplateFlowStep):
             return self.post_room_create(request)
         elif room_mode == "none":
             return self.post_room_none(request)
+        elif room_mode == "nochange":
+            return redirect(self.get_next_url(request))
 
         messages.error(
             self.request,
@@ -183,11 +195,10 @@ class RoomStep(CartMixin, TemplateFlowStep):
     @atomic
     def post_room_join(self, request):
         order_room = None
-        if pk := self.cart_session.get("room_join"):
-            try:
-                order_room = OrderRoom.objects.get(event=self.event, pk=pk)
-            except OrderRoom.DoesNotExist:
-                pass
+        try:
+            order_room = OrderRoom.objects.get(cart_id=get_or_create_cart_id(request))
+        except OrderRoom.DoesNotExist:
+            pass
 
         cleaned_data = self.join_form.cleaned_data
         room = cleaned_data["room"]
@@ -224,12 +235,20 @@ class RoomStep(CartMixin, TemplateFlowStep):
 
         if pk := self.cart_session.get("room_join"):
             try:
-                OrderRoom.objects.get(event=self.event, pk=pk).delete()
+                OrderRoom.objects.get(pk=pk).delete()
             except OrderRoom.DoesNotExist:
                 pass
 
         cleaned_data = self.create_form.cleaned_data
-        room = Room.objects.create(event=self.event, room_definition=room_definition, name=cleaned_data["name"], password=cleaned_data["password"])
+        try:
+            room = Room.objects.get(event=self.event, name=cleaned_data["name"])
+            room.password = cleaned_data["password"]
+            room.room_definition = room_definition
+            room.save()
+        except Room.DoesNotExist:
+            room = Room.objects.create(event=self.event, room_definition=room_definition, name=cleaned_data["name"], password=cleaned_data["password"])
+            pass
+
         order_room = OrderRoom.objects.create(order=None, cart_id=get_or_create_cart_id(request), room=room, is_admin=True)
 
         self.cart_session["room_create"] = room.pk
@@ -308,16 +327,15 @@ class RoomStep(CartMixin, TemplateFlowStep):
         ctx["create_form"] = self.create_form
         ctx["join_form"] = self.join_form
         ctx["cart"] = self.get_cart()
-        ctx["selected"] = self.cart_session.get("room_mode", "")
-        order_has_room = False
-        for cartPosition in self.get_cart()["positions"]:
-            if (
-                str(cartPosition.item.id)
-                in self.request.event.settings.roomsharing__products
-            ):
-                order_has_room = True
 
-        ctx["order_has_room"] = order_has_room
+        selected = ctx["selected"] = self.cart_session.get("room_mode", "none")
+        if selected in ["create", "join"]:
+            ctx["show_nochange"] = True
+            ctx["selected"] = "nochange"
+        else:
+            ctx["selected"] = selected
+
+        ctx["order_has_room"] = True
         ctx["create_disabled"] = len(self.available_room_definitions) == 0
         return ctx
 

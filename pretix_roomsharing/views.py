@@ -1,13 +1,13 @@
 import base64
 import hmac
 import logging
+import uuid
 from collections import defaultdict
 from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Count, Exists, OuterRef
-from django.forms.widgets import CheckboxSelectMultiple
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -18,12 +18,11 @@ from django.views import View
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.generic import ListView, TemplateView
 from django_scopes import scopes_disabled
-from pretix.base.forms import SettingsForm
 from pretix.base.models import Event, Order, OrderPosition, OrderRefund
 from pretix.base.views.metrics import unauthed_response
 from pretix.control.permissions import EventPermissionRequiredMixin
 from pretix.control.views import UpdateView, CreateView
-from pretix.control.views.event import EventSettingsFormView, EventSettingsViewMixin
+from pretix.control.views.event import EventSettingsViewMixin
 from pretix.control.views.orders import OrderView
 from pretix.helpers.compat import CompatDeleteView
 from pretix.multidomain.urlreverse import eventreverse
@@ -35,32 +34,61 @@ from .forms import RoomDefinitionForm
 logger = logging.getLogger(__name__)
 
 
-class RoomsharingSettingsForm(SettingsForm):
-    roomsharing__products = forms.MultipleChoiceField(
-        choices=[],
-        label=_("Roomsharing products"),
-        required=False,
-        widget=CheckboxSelectMultiple,
-    )
-
-    def __init__(self, *args, **kwargs):
-        event = kwargs.get("obj")
-        super().__init__(*args, **kwargs)
-
-        choices = (
-            (str(i["id"]), i["name"]) for i in event.items.values("name", "id").all()
-        )
-
-        self.fields["roomsharing__products"].choices = choices
-        #self.initial["roomsharing__products"] = event.settings.roomsharing__products
-
-
-class SettingsView(EventSettingsViewMixin, EventSettingsFormView):
+class SettingsView(EventSettingsViewMixin, TemplateView):
     model = Event
-    form_class = RoomsharingSettingsForm
     template_name = "pretix_roomsharing/settings.html"
-    permission = "can_change_settings"
+    permission = "can_change_event_settings"
     # TODO: Set user public name field
+
+    def post(self, request, *args, **kwargs):
+        self.randomize_rooms(request)
+        messages.success(self.request, _('Rooms have been assigned.'))
+        return redirect(self.get_success_url())
+
+    def randomize_rooms(self, request):
+        event = request.event
+        items = RoomDefinition.objects.values("items").distinct()
+        order_pks = OrderPosition.objects.filter(order__event=event, order__status=Order.STATUS_PAID, order__orderroom__isnull=True, item__in=items).values_list("order", flat=True).distinct()
+        unassigned = Order.objects.filter(pk__in=order_pks)
+        created_rooms = []
+        existing_rooms = [room for room in Room.objects.all() if room.has_capacity()]
+        def find_or_create_room(order):
+            definition_pks = OrderPosition.objects.filter(order__event=event, order=order, item__in=items).values("item__room_definitions").distinct()
+            definitions = RoomDefinition.objects.filter(pk__in=definition_pks)
+            # Try to find a newly created room
+            for created_room in list(created_rooms):
+                if not created_room.has_capacity():
+                    created_rooms.remove(created_room)
+                    continue
+
+                for room_definition in definitions:
+                    if created_room.room_definition == room_definition:
+                        return created_room, False
+
+            # Try to create an empty room
+            for definition in definitions:
+                if definition.is_available():
+                    name = str(uuid.uuid4())
+                    password = str(uuid.uuid4())
+                    created_room = Room.objects.create(event=event, room_definition=definition, name=name, password=password)
+                    created_rooms.append(created_room)
+                    return created_room, True
+
+            #Try to find an already existing room
+            for existing_room in list(existing_rooms):
+                if not existing_room.has_capacity():
+                    existing_rooms.remove(existing_room)
+
+                for room_definition in definitions:
+                    if existing_room.room_definition == room_definition:
+                        return existing_room, False
+
+            messages.error(request, _(f'Failed to find a room for {order.code}.'))
+            return None, False
+
+        for order in unassigned:
+            room, created = find_or_create_room(order)
+            OrderRoom.objects.create(order=order, room=room, is_admin=created)
 
     def get_success_url(self):
         return reverse(
@@ -307,7 +335,7 @@ class RoomList(EventPermissionRequiredMixin, ListView):
     paginate_by = 25
 
     def get_queryset(self):
-        return self.request.event.rooms.all()
+        return [room for room in self.request.event.rooms.all() if room.is_valid()]
 
 
 class RoomForm(forms.ModelForm):
@@ -359,7 +387,7 @@ class RoomDetail(EventPermissionRequiredMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["orders"] = self.object.orderrooms.select_related("order")
+        ctx["orders"] = self.object.orderrooms.filter(order__isnull=False).select_related("order")
         return ctx
 
 
@@ -382,7 +410,7 @@ class RoomDelete(EventPermissionRequiredMixin, CompatDeleteView):
         room.log_action(
             "pretix_roomsharing.room.deleted", data={"name": room.name}, user=request.user
         )
-        for order_room in room.orderrooms.select_related("order"):
+        for order_room in room.orderrooms.filter(order__isnull=False).select_related("order"):
             order_room.order.log_action(
                 "pretix_roomsharing.order.deleted",
                 data={"room": room.pk},
@@ -415,7 +443,7 @@ class RoomDefinitionList(EventPermissionRequiredMixin, ListView):
         ctx = super().get_context_data()
 
         for room_definition in ctx['room_definitions']:
-            room_definition.room_count = Room.objects.filter(room_definition=room_definition.id).count()
+            room_definition.room_count = room_definition.get_valid_room_count()
 
         return ctx
 
