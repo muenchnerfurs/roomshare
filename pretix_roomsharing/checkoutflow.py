@@ -186,7 +186,7 @@ class RoomStep(CartMixin, TemplateFlowStep):
     def post_room_none(self, request):
         if pk := self.cart_session.get("room_join"):
             try:
-                OrderRoom.objects.get(event=self.event, pk=pk).delete()
+                OrderRoom.objects.get(pk=pk).delete()
             except OrderRoom.DoesNotExist:
                 pass
 

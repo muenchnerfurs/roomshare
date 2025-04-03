@@ -51,7 +51,7 @@ class Room(LoggedModel):
         return self.name
 
     def has_capacity(self):
-        return self.get_valid_room_orders().count() < self.room_definition.max_rooms
+        return self.get_valid_room_orders().count() < self.room_definition.capacity
 
     def touch(self):
         order_rooms = self.get_valid_room_orders()
