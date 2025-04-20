@@ -15,9 +15,9 @@ class RoomDefinition(LoggedModel):
         verbose_name=_("Products"),
         blank=True,
     )
-    name = models.CharField(max_length=255)
-    capacity = models.PositiveIntegerField()
-    max_rooms = models.PositiveIntegerField() # TODO: Use a quota here?
+    name = models.CharField(max_length=255, verbose_name=_("Name"))
+    capacity = models.PositiveIntegerField(verbose_name=_("Capacity"))
+    max_rooms = models.PositiveIntegerField(verbose_name=_("Max Rooms")) # TODO: Use a quota here?
 
     class Meta:
         unique_together = (("event", "name"),)
@@ -38,10 +38,10 @@ class Room(LoggedModel):
         "pretixbase.Event", on_delete=models.CASCADE, related_name="rooms"
     )
     room_definition = models.ForeignKey(
-        RoomDefinition, on_delete=models.CASCADE, related_name="rooms"
+        RoomDefinition, on_delete=models.CASCADE, related_name="rooms", verbose_name=_("Room Definition")
     )
-    name = models.CharField(max_length=190)
-    password = models.CharField(max_length=190, blank=True)
+    name = models.CharField(max_length=190, verbose_name=_("Name"))
+    password = models.CharField(max_length=190, blank=True, verbose_name=_("Password"))
 
     class Meta:
         unique_together = (("event", "name"),)

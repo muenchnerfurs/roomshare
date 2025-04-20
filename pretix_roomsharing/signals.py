@@ -190,7 +190,7 @@ def control_nav_event(sender, request=None, **kwargs):
         return []
     return [
         {
-            "label": _("Room Sharing"),
+            "label": _("Roomsharing"),
             "url": reverse(
                 "plugins:pretix_roomsharing:event.room.list",
                 kwargs={
