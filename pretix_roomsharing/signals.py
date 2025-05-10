@@ -84,7 +84,10 @@ def placed_order(sender: Event, order: Order, **kwargs):
 
 @receiver(order_canceled, dispatch_uid="room_order_canceled")
 def cancel_order(sender: Event, order: Order, **kwargs):
-    OrderRoom.objects.get(order=order).delete()
+    try:
+        OrderRoom.objects.get(order=order).delete()
+    except OrderRoom.DoesNotExist:
+        pass
 
 
 @receiver(checkout_confirm_page_content, dispatch_uid="room_confirm")

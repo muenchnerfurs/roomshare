@@ -82,7 +82,7 @@ class Room(LoggedModel):
         return self.get_valid_room_orders().count() != 0
 
 
-class OrderRoom(models.Model):
+class OrderRoom(LoggedModel):
     order = models.OneToOneField(
         "pretixbase.Order", related_name="orderroom", on_delete=models.CASCADE, null=True, blank=True
     )
