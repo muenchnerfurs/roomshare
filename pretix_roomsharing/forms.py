@@ -2,7 +2,7 @@ from django import forms
 from pretix.base.forms import I18nModelForm
 from pretix.control.forms import ItemMultipleChoiceField
 
-from pretix_roomsharing.models import RoomDefinition
+from pretix_roomsharing.models import RoomDefinition, OrderRoom
 
 
 class RoomDefinitionForm(I18nModelForm):
@@ -20,3 +20,10 @@ class RoomDefinitionForm(I18nModelForm):
         fields = ['name', 'items', 'capacity', 'max_rooms']
         widgets = {'items': forms.CheckboxSelectMultiple(attrs={'class': 'scrolling-multiple-choice'}), }
         field_classes = {'items': ItemMultipleChoiceField}
+
+
+class OrderRoomForm(I18nModelForm):
+    code = forms.CharField(label='Order Code', max_length=100)
+    class Meta:
+        fields = []
+        model = OrderRoom

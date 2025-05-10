@@ -29,7 +29,7 @@ from pretix.multidomain.urlreverse import eventreverse
 from pretix.presale.views import EventViewMixin
 from pretix.presale.views.order import OrderDetailMixin
 
-from .forms import RoomDefinitionForm
+from .forms import RoomDefinitionForm, OrderRoomForm
 
 logger = logging.getLogger(__name__)
 
@@ -361,11 +361,16 @@ class RoomForm(forms.ModelForm):
 class RoomDetail(EventPermissionRequiredMixin, UpdateView):
     permission = "can_change_orders"
     template_name = "pretix_roomsharing/control_detail.html"
-    context_object_name = "rooms"
+    context_object_name = "room"
     form_class = RoomForm
 
-    def get_queryset(self):
-        return self.request.event.rooms.all()
+    def get_object(self, queryset=None):
+        try:
+            return self.request.event.rooms.get(
+                pk=self.kwargs['pk']
+            )
+        except Room.DoesNotExist:
+            raise Http404(_("The requested room does not exist."))
 
     def form_valid(self, form):
         form.save()
@@ -428,6 +433,94 @@ class RoomDelete(EventPermissionRequiredMixin, CompatDeleteView):
                 },
             )
         )
+
+
+class RoomRemoveOrder(EventPermissionRequiredMixin, CompatDeleteView):
+    permission = "can_change_orders"
+    template_name = "pretix_roomsharing/control_order_room_delete.html"
+    context_object_name = "order_room"
+
+    def get_object(self, queryset=None):
+        try:
+            return self.request.event.orders.get(
+                code=self.kwargs['order_code']
+            ).orderroom
+        except OrderRoom.DoesNotExist:
+            raise Http404(_("The requested room order does not exist."))
+
+    @transaction.atomic
+    def delete(self, request, *args, **kwargs):
+        order_room = self.object = self.get_object()
+        order_room.log_action(
+            "pretix_roomsharing.order_room.deleted", data={"name": order_room.room.name, "order_code": order_room.order.code}, user=request.user
+        )
+        room = order_room.room
+        order_room.delete()
+        messages.success(self.request, _("The order room has been deleted."))
+        if room.is_valid():
+            return redirect(
+                reverse(
+                    "plugins:pretix_roomsharing:event.room.detail",
+                    kwargs={
+                        "organizer": self.request.organizer.slug,
+                        "event": self.request.event.slug,
+                        "pk": self.kwargs['pk'],
+                    },
+                )
+            )
+        else:
+            return redirect(
+                reverse(
+                    "plugins:pretix_roomsharing:event.room.list",
+                    kwargs={
+                        "organizer": self.request.organizer.slug,
+                        "event": self.request.event.slug,
+                    },
+                )
+            )
+
+
+class RoomAddOrder(EventPermissionRequiredMixin, CreateView):
+    model = OrderRoom
+    form_class = OrderRoomForm
+    permission = "can_change_orders"
+    template_name = "pretix_roomsharing/control_order_room_add.html"
+    context_object_name = "orderroom"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['instance'] = OrderRoom(room=Room.objects.get(id=self.kwargs['pk']))
+        return kwargs
+
+    def get_success_url(self) -> str:
+        return reverse(
+            "plugins:pretix_roomsharing:event.room.detail",
+            kwargs={
+                "organizer": self.request.organizer.slug,
+                "event": self.request.event.slug,
+                "pk": self.kwargs['pk'],
+            },
+        )
+
+    @transaction.atomic
+    def form_valid(self, form):
+        try:
+            order = Order.objects.get(event=self.request.event, code=form.cleaned_data['code'])
+        except Order.DoesNotExist:
+            messages.error(self.request, _('The provided order does not exist.'))
+            return super().form_valid(form)
+
+        if hasattr(order, 'orderroom'):
+            messages.error(self.request, _('The provided order is already assigned to a different room.'))
+            return super().form_valid(form)
+
+        order_room = form.instance
+        order_room.order = order
+        messages.success(self.request, _('The order has been successfully assigned to the room.'))
+        ret = super().form_valid(form)
+        form.instance.log_action('pretix_roomsharing.order_room.added', user=self.request.user, data={"name": order_room.room.name, "order_code": order_room.order.code})
+
+        return ret
 
 
 class RoomDefinitionList(EventPermissionRequiredMixin, ListView):

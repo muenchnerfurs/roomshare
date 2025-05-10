@@ -15,20 +15,57 @@
             </fieldset>
             <fieldset>
                 <legend>{% trans "Connected orders" %}</legend>
-                <ul>
-                    {% for oc in orders %}
-                        <li>
-                            <a href="{% url "control:event.order" event=request.event.slug organizer=request.event.organizer.slug code=oc.order.code %}">
-                                {% blocktrans with code=oc.order.code %}Order {{ code }}{% endblocktrans %}
-                            </a></li>
-                    {% empty %}
-                        <p>
-                            <em>
-                                {% trans "No orders connected. Maybe someone created this room and hasn't yet completed checkout." %}
-                            </em>
-                        </p>
-                    {% endfor %}
-                </ul>
+                <p>
+                    <a href="{% url "plugins:pretix_roomsharing:event.room.add_order" event=request.event.slug organizer=request.event.organizer.slug pk=room.pk %}" class="btn btn-default">
+                        <i class="fa fa-plus"></i> {% trans "Add Order" %}
+                    </a>
+                </p>
+                {% if orders.count != 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-quotas">
+                        <thead>
+                        <tr>
+                            <th>{% trans "Order code" %}</th>
+                            <th>{% trans "User" %}</th>
+                            <th>{% trans "Admin" %}</th>
+                            <th class="action-col-2"></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for o in orders %}
+                            <tr>
+                                <td>
+                                    <a href="{% url "control:event.order" event=request.event.slug organizer=request.event.organizer.slug code=o.order.code %}">
+                                        <strong>
+                                            {{ o.order.code }}
+                                        </strong>
+                                    </a>
+                                </td>
+                                <td>
+                                    {{ o.order.email }}
+                                </td>
+                                <td>
+                                    {% if o.is_admin %}
+                                        {% trans "Yes" %}
+                                    {% else %}
+                                        {% trans "No" %}
+                                    {% endif %}
+                                </td>
+                                <td class="text-right flip">
+                                    <a href="{% url "plugins:pretix_roomsharing:event.room.remove_order" event=request.event.slug organizer=request.event.organizer.slug pk=room.pk order_code=o.order.code %}" class="btn btn-danger btn-sm"><i class="fa fa-trash"></i></a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                    <p>
+                        <em>
+                            {% trans "No orders connected. Maybe someone created this room and hasn't yet completed checkout." %}
+                        </em>
+                    </p>
+                {% endif %}
             </fieldset>
         </div>
         <div class="form-group submit-group">
