@@ -29,7 +29,7 @@ from pretix.multidomain.urlreverse import eventreverse
 from pretix.presale.views import EventViewMixin
 from pretix.presale.views.order import OrderDetailMixin
 
-from .forms import RoomDefinitionForm
+from .forms import RoomDefinitionForm, OrderRoomForm
 
 logger = logging.getLogger(__name__)
 
@@ -478,6 +478,49 @@ class RoomRemoveOrder(EventPermissionRequiredMixin, CompatDeleteView):
                     },
                 )
             )
+
+
+class RoomAddOrder(EventPermissionRequiredMixin, CreateView):
+    model = OrderRoom
+    form_class = OrderRoomForm
+    permission = "can_change_orders"
+    template_name = "pretix_roomsharing/control_order_room_add.html"
+    context_object_name = "orderroom"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['instance'] = OrderRoom(room=Room.objects.get(id=self.kwargs['pk']))
+        return kwargs
+
+    def get_success_url(self) -> str:
+        return reverse(
+            "plugins:pretix_roomsharing:event.room.detail",
+            kwargs={
+                "organizer": self.request.organizer.slug,
+                "event": self.request.event.slug,
+                "pk": self.kwargs['pk'],
+            },
+        )
+
+    @transaction.atomic
+    def form_valid(self, form):
+        try:
+            order = Order.objects.get(event=self.request.event, code=form.cleaned_data['code'])
+        except Order.DoesNotExist:
+            messages.error(self.request, _('The provided order does not exist.'))
+            return super().form_valid(form)
+
+        if hasattr(order, 'orderroom'):
+            messages.error(self.request, _('The provided order is already assigned to a different room.'))
+            return super().form_valid(form)
+
+        order_room = form.instance
+        order_room.order = order
+        messages.success(self.request, _('The order has been successfully assigned to the room.'))
+        ret = super().form_valid(form)
+        form.instance.log_action('pretix_roomsharing.order_room.added', user=self.request.user, data={"name": order_room.room.name, "order_code": order_room.order.code})
+
+        return ret
 
 
 class RoomDefinitionList(EventPermissionRequiredMixin, ListView):
