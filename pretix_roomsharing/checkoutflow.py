@@ -333,7 +333,7 @@ class RoomStep(CartMixin, TemplateFlowStep):
         ctx["cart"] = self.get_cart()
 
         selected = ctx["selected"] = self.cart_session.get("room_mode", "none")
-        if selected in ["create", "join"]:
+        if (selected == "create" and self.cart_session.get("room_create", None)) or (selected == "join" and self.cart_session.get("room_join", None)):
             ctx["show_nochange"] = True
             ctx["selected"] = "nochange"
         else:
