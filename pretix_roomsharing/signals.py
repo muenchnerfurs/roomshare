@@ -248,7 +248,7 @@ def room_validate_order(sender: Event, payments, positions: QuerySet[CartPositio
         pass
 
     if room and not room.is_valid():
-        raise OrderError(_("Invalid room."))
+        raise OrderError(_("Room Validation Error. Invalid room. Try to do the room step again."))
 
     room_join = meta_info.get("room_join", None)
     order_room = None
@@ -275,7 +275,7 @@ def room_validate_order(sender: Event, payments, positions: QuerySet[CartPositio
             if room_create or room_join:
                 raise OrderError(_("Room Validation Error. Room mode is none but no room created or no room joined. Try to do the room step again."))
         case _:
-            raise OrderError(_("Invalid room mode."))
+            raise OrderError(_("Room Validation Error. Invalid room mode. Try to do the room step again."))
 
 
 class RoomSearchForm(FilterForm):
