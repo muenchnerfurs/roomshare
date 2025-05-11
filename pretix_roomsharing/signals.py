@@ -259,21 +259,21 @@ def room_validate_order(sender: Event, payments, positions: QuerySet[CartPositio
 
     if order_room:
         if not order_room.is_valid():
-            raise OrderError(_("Invalid order room."))
+            raise OrderError(_("Room Validation Error. Invalid Order Room. Try to do the room step again."))
         elif not positions.filter(item__in=order_room.room.room_definition.items.all()).exists():
-            raise OrderError(_("Inconsistent data."))
+            raise OrderError(_("Room Validation Error. No items in cart which grant a room. Try to do the room step again."))
 
     room_mode = meta_info.get("room_mode", None)
     match room_mode:
         case "join":
             if room_create or not room_join:
-                raise OrderError(_("Inconsistent data."))
+                raise OrderError(_("Room Validation Error. Room mode is join but no joined room or room created. Try to do the room step again."))
         case "create":
             if not room_create or not room_join:
-                raise OrderError(_("Inconsistent data."))
+                raise OrderError(_("Room Validation Error. Room mode is create but no room created or room joined. Try to do the room step again."))
         case "none" | None:
             if room_create or room_join:
-                raise OrderError(_("Inconsistent data."))
+                raise OrderError(_("Room Validation Error. Room mode is none but no room created or no room joined. Try to do the room step again."))
         case _:
             raise OrderError(_("Invalid room mode."))
 
