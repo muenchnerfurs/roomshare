@@ -15,13 +15,16 @@
                 {% blocktrans trimmed with room=room.name %}
                     You are taking part in the roomshare as part of the room <strong>{{ room }}</strong>.
                 {% endblocktrans %}
-
+            </p>
+            <p>
+                {% blocktrans trimmed with type=room.room_definition.name %}
+                    The room type is <strong>{{ type }}</strong>.
+                {% endblocktrans %}
             </p>
             {% if is_admin %}
             <p>
-                {% trans "You have created this room." %}
+                {% trans "You are the administrator of this room." %}
             </p>
-                
             {% endif %}
             <p>
                 {% trans "Your fellow room members are:" %}
