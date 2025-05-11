@@ -8,6 +8,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Count, Exists, OuterRef
+from django.db.transaction import atomic
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -26,7 +27,8 @@ from pretix.control.views.event import EventSettingsViewMixin
 from pretix.control.views.orders import OrderView
 from pretix.helpers.compat import CompatDeleteView
 from pretix.multidomain.urlreverse import eventreverse
-from pretix.presale.views import EventViewMixin
+from pretix.presale.views import EventViewMixin, CartMixin
+from pretix.presale.views.cart import get_or_create_cart_id
 from pretix.presale.views.order import OrderDetailMixin
 
 from .forms import RoomDefinitionForm, OrderRoomForm
@@ -119,8 +121,18 @@ class RoomChangePasswordForm(forms.Form):
 
 
 @method_decorator(xframe_options_exempt, "dispatch")
-class OrderRoomChange(EventViewMixin, OrderDetailMixin, TemplateView):
+class OrderRoomChange(EventViewMixin, OrderDetailMixin, CartMixin, TemplateView):
     template_name = "pretix_roomsharing/order_room_change.html"
+
+    def get_modify_url(self):
+        return eventreverse(
+            self.request.event,
+            "plugins:pretix_roomsharing:event.order.room.modify",
+            kwargs={
+                "order": self.order.code,
+                "secret": self.order.secret,
+            },
+        )
 
     def dispatch(self, request, *args, **kwargs):
         self.request = request
@@ -138,101 +150,120 @@ class OrderRoomChange(EventViewMixin, OrderDetailMixin, TemplateView):
             messages.error(request, _("The room for this order cannot be changed."))
             return redirect(self.get_order_url())
 
-        if self.order.status not in (Order.STATUS_CANCELED, Order.STATUS_EXPIRED):
+        if self.order.status in (Order.STATUS_CANCELED, Order.STATUS_EXPIRED):
             messages.error(request, _("The room for this order cannot be changed."))
             return redirect(self.get_order_url())
 
         return super().dispatch(request, *args, **kwargs)
 
-    @transaction.atomic
+    @atomic
     def post(self, request, *args, **kwargs):
         self.request = request
 
         mode = request.POST.get("room_mode")
         if mode == "leave":
-            try:
-                c = self.order.orderroom
-                c.delete()
-                self.order.log_action(
-                    "pretix_roomsharing.order.left", data={"room": c.pk}
-                )
-                messages.success(
-                    request,
-                    _(
-                        "Okay, you left your room successfully. How do you want to continue?"
-                    ),
-                )
-                return redirect(
-                    eventreverse(
-                        self.request.event,
-                        "plugins:pretix_roomsharing:event.order.room.modify",
-                        kwargs={
-                            "order": self.order.code,
-                            "secret": self.order.secret,
-                        },
-                    )
-                )
-            except OrderRoom.DoesNotExist:
-                pass
-
+            return self.post_room_leave(request, *args, **kwargs)
         elif mode == "change":
-            if self.change_form.is_valid():
-                try:
-                    c = self.order.orderroom
-                    if c.is_admin:
-                        c.room.password = self.change_form.cleaned_data["password"]
-                        c.room.save()
-                    self.order.log_action(
-                        "pretix_roomsharing.order.changed", data={"room": c.pk}
-                    )
-                    messages.success(
-                        request,
-                        _(
-                            "Okay, we changed the password. Make sure to tell your friends!"
-                        ),
-                    )
-                    return redirect(self.get_order_url())
-                except OrderRoom.DoesNotExist:
-                    pass
-
+            return self.post_room_change(request, *args, **kwargs)
         elif mode == "join":
-            if self.join_form.is_valid():
-                room = self.join_form.cleaned_data["room"]
-                if not room.has_capacity():
-                    messages.error(
-                        self.request,
-                        _("This room is full. Please choose another or create a new one."),
-                    )
-                    return self.get(request, *args, **kwargs)
-
-                OrderRoom.objects.create(room=room, order=self.order)
-                self.order.log_action(
-                    "pretix_roomsharing.order.joined", data={"room": room.pk}
-                )
-                messages.success(request, _("Great, we saved your changes!"))
-                return redirect(self.get_order_url())
-
+            return self.post_room_join(request, *args, **kwargs)
         elif mode == "create":
-            if self.create_form.is_valid():
-                room = Room(event=self.request.event)
-                room.name = self.create_form.cleaned_data["name"]
-                room.password = self.create_form.cleaned_data["password"]
-                room.save()
-                OrderRoom.objects.create(room=room, order=self.order, is_admin=True)
-                self.order.log_action(
-                    "pretix_roomsharing.order.created", data={"room": room.pk}
-                )
-                messages.success(request, _("Great, we saved your changes!"))
-                return redirect(self.get_order_url())
+            return self.post_room_create(request, *args, **kwargs)
         elif mode == "none":
-            messages.success(request, _("Great, we saved your changes!"))
-            return redirect(self.get_order_url())
+            return self.post_room_none(request)
 
         messages.error(
             self.request,
             _("We could not handle your input. See below for more information."),
         )
         return self.get(request, *args, **kwargs)
+
+    @atomic
+    def post_room_leave(self, request, *args, **kwargs):
+        if not hasattr(self.order, "orderroom"):
+            messages.error(request, _("There's no room to leave."))
+            return self.get(request, *args, **kwargs)
+
+        c = self.order.orderroom
+        c.delete()
+        self.order.log_action("pretix_roomsharing.order.left", data={"room": c.pk})
+        messages.success(request, _("Okay, you left your room successfully. How do you want to continue?"))
+
+        return redirect(self.get_modify_url())
+
+    @atomic
+    def post_room_change(self, request, *args, **kwargs):
+        if not self.change_form.is_valid():
+            return self.get(request, *args, **kwargs)
+
+        if not hasattr(self.order, "orderroom"):
+            messages.error(request, _("There's no room to edit."))
+            return self.get(request, *args, **kwargs)
+
+        c = self.order.orderroom
+        if not c.is_admin:
+            messages.error(request, _("You cannot edit this room."))
+            return self.get(request, *args, **kwargs)
+
+        c.room.password = self.change_form.cleaned_data["password"]
+        c.room.save()
+        self.order.log_action("pretix_roomsharing.order.changed", data={"room": c.pk})
+        messages.success(request, _("Okay, we changed the password. Make sure to tell your friends!"))
+
+        return redirect(self.get_order_url())
+
+    @atomic
+    def post_room_none(self, request):
+        if hasattr(self.order, "orderroom"):
+            self.order.delete()
+
+        self.order.log_action("pretix_roomsharing.order.random")
+        messages.success(request, _("Great, we saved your changes!"))
+
+        return redirect(self.get_order_url())
+
+    @atomic
+    def post_room_join(self, request, *args, **kwargs):
+        if not self.join_form.is_valid():
+            return self.get(request, *args, **kwargs)
+
+        if hasattr(self.order, "orderroom"):
+            messages.error(request, _("You must leave your current room before you can join another one."))
+            return self.get(request, *args, **kwargs)
+
+        cleaned_data = self.join_form.cleaned_data
+        room = cleaned_data["room"]
+
+        if not room.has_capacity():
+            messages.error(request, _("The chosen room is already full. Please choose another one."))
+            return self.get(request, *args, **kwargs)
+
+        OrderRoom.objects.create(order=self.order, room=room, is_admin=False)
+        self.order.log_action("pretix_roomsharing.order.joined", data={"room": room.pk})
+        messages.success(request, _("Great, we saved your changes!"))
+
+        return redirect(self.get_order_url())
+
+    @atomic
+    def post_room_create(self, request, *args, **kwargs):
+        if not self.create_form.is_valid():
+            return self.get(request, *args, **kwargs)
+
+        if hasattr(self.order, "orderroom"):
+            messages.error(request, _("You must leave your current room before you can create one."))
+            return self.get(request, *args, **kwargs)
+
+        room_definition = RoomDefinition.objects.get(event=request.event, pk=int(self.create_form.cleaned_data["room_definition"]))
+        if not room_definition.is_available():
+            messages.error(request, _("No more rooms of this type available. Please choose another one."))
+            return self.get(request, *args, **kwargs)
+
+        room = Room.objects.create(event=request.event, name=self.create_form.cleaned_data["name"], password=self.create_form.cleaned_data["password"], room_definition=room_definition)
+        OrderRoom.objects.create(room=room, order=self.order, is_admin=True)
+        self.order.log_action("pretix_roomsharing.order.created", data={"room": room.pk})
+        messages.success(request, _("Great, we saved your changes!"))
+
+        return redirect(self.get_order_url())
 
     @cached_property
     def change_form(self):
@@ -250,6 +281,9 @@ class OrderRoomChange(EventViewMixin, OrderDetailMixin, TemplateView):
         return RoomCreateForm(
             event=self.request.event,
             prefix="create",
+            initial=None,
+            current=None,
+            room_definitions=self.available_room_definitions,
             data=self.request.POST
             if self.request.method == "POST"
             and self.request.POST.get("room_mode") == "create"
@@ -267,6 +301,12 @@ class OrderRoomChange(EventViewMixin, OrderDetailMixin, TemplateView):
             else None,
         )
 
+    @cached_property
+    def available_room_definitions(self):
+        items = [position.item for position in self.order.positions.all()]
+        room_definitions = (definition for item in items for definition in item.room_definitions.all())
+        return [(definition.id, definition.name) for definition in room_definitions if definition.is_available()]
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["order"] = self.order
@@ -280,6 +320,8 @@ class OrderRoomChange(EventViewMixin, OrderDetailMixin, TemplateView):
             ctx["is_admin"] = c.is_admin
         except OrderRoom.DoesNotExist:
             ctx["selected"] = self.request.POST.get("room_mode", "none")
+
+        ctx["create_disabled"] = len(self.available_room_definitions) == 0
 
         return ctx
 
