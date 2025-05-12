@@ -128,17 +128,19 @@ def order_info(sender: Event, order: Order, **kwargs):
         order_has_room = True
     ctx["order_has_room"] = order_has_room
 
+    if not order_has_room:
+        return
+
     # Show current room details
     try:
-        c = order.orderroom
-        fellows_orders = OrderPosition.objects.filter(
+        order_room = order.orderroom
+        room = order_room.room
+        fellows_orders = room.orderrooms.filter(
             order__status__in=(Order.STATUS_PENDING, Order.STATUS_PAID),
-            order__orderroom__room=c.room,
-            item__admission=True,
-        ).exclude(order=order)
+        ).exclude(pk=order_room.pk)
 
-        ctx["room"] = c.room
-        ctx["is_admin"] = c.is_admin
+        ctx["room"] = room
+        ctx["is_admin"] = order_room.is_admin
         ctx["fellows"] = fellows_orders
     except OrderRoom.DoesNotExist:
         pass
