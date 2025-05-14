@@ -17,35 +17,57 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from django.views import View
 from django.views.decorators.clickjacking import xframe_options_exempt
-from django.views.generic import ListView, TemplateView
+from django.views.generic import ListView, TemplateView, FormView
 from django_scopes import scopes_disabled
 from pretix.base.models import Event, Order, OrderPosition, OrderRefund
 from pretix.base.views.metrics import unauthed_response
 from pretix.control.permissions import EventPermissionRequiredMixin
 from pretix.control.views import UpdateView, CreateView
-from pretix.control.views.event import EventSettingsViewMixin
+from pretix.control.views.event import EventSettingsViewMixin, EventSettingsFormView
 from pretix.control.views.orders import OrderView
 from pretix.helpers.compat import CompatDeleteView
 from pretix.multidomain.urlreverse import eventreverse
 from pretix.presale.views import EventViewMixin, CartMixin
-from pretix.presale.views.cart import get_or_create_cart_id
 from pretix.presale.views.order import OrderDetailMixin
 
-from .forms import RoomDefinitionForm, OrderRoomForm
+from .forms import RoomDefinitionForm, OrderRoomForm, RoomsharingSettingsForm
+from .checkoutflow import RoomCreateForm, RoomJoinForm
+from .models import OrderRoom, Room, RoomDefinition
 
 logger = logging.getLogger(__name__)
 
 
-class SettingsView(EventSettingsViewMixin, TemplateView):
+class SettingsView(EventSettingsViewMixin, EventSettingsFormView):
     model = Event
+    form_class = RoomsharingSettingsForm
     template_name = "pretix_roomsharing/settings.html"
-    permission = "can_change_event_settings"
-    # TODO: Set user public name field
+
+    def get_success_url(self):
+        return reverse(
+            "plugins:pretix_roomsharing:control.room.settings",
+            kwargs={
+                "organizer": self.request.event.organizer.slug,
+                "event": self.request.event.slug,
+            },
+        )
+
+
+class RandomizeView(TemplateView):
+    template_name = "pretix_roomsharing/randomize.html"
 
     def post(self, request, *args, **kwargs):
         self.randomize_rooms(request)
         messages.success(self.request, _('Rooms have been assigned.'))
         return redirect(self.get_success_url())
+
+    def get_success_url(self):
+        return reverse(
+            "plugins:pretix_roomsharing:control.room.settings",
+            kwargs={
+                "organizer": self.request.event.organizer.slug,
+                "event": self.request.event.slug,
+            },
+        )
 
     def randomize_rooms(self, request):
         event = request.event
@@ -91,19 +113,6 @@ class SettingsView(EventSettingsViewMixin, TemplateView):
         for order in unassigned:
             room, created = find_or_create_room(order)
             OrderRoom.objects.create(order=order, room=room, is_admin=created)
-
-    def get_success_url(self):
-        return reverse(
-            "plugins:pretix_roomsharing:control.room.settings",
-            kwargs={
-                "organizer": self.request.event.organizer.slug,
-                "event": self.request.event.slug,
-            },
-        )
-
-
-from .checkoutflow import RoomCreateForm, RoomJoinForm
-from .models import OrderRoom, Room, RoomDefinition
 
 
 class RoomChangePasswordForm(forms.Form):

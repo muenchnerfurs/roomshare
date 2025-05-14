@@ -10,6 +10,7 @@ from django.template.loader import get_template
 from django.urls import resolve, reverse
 from django.utils.translation import gettext_lazy as _
 from pretix.base.models import Event, Order, OrderPosition, CartPosition
+from pretix.base.pdf import get_variables
 from pretix.base.services.orders import OrderError
 from pretix.base.settings import settings_hierarkey
 from pretix.base.signals import logentry_display, order_placed, order_canceled, validate_order, layout_text_variables
@@ -139,9 +140,14 @@ def order_info(sender: Event, order: Order, **kwargs):
             order__status__in=(Order.STATUS_PENDING, Order.STATUS_PAID),
         ).exclude(pk=order_room.pk)
 
+        display = sender.settings.get("roomsharing_room_mate_display")
+        variable = get_variables(sender)[display]
+        evaluate = variable["evaluate"]
+        room_mates = [evaluate(o.order.all_positions.first(), o.order, sender) for o in fellows_orders]
+
         ctx["room"] = room
         ctx["is_admin"] = order_room.is_admin
-        ctx["fellows"] = fellows_orders
+        ctx["fellows"] = room_mates
     except OrderRoom.DoesNotExist:
         pass
 
@@ -339,3 +345,5 @@ try:
 
 except ImportError:
     pass
+
+settings_hierarkey.add_default("roomsharing_room_mate_display", "order", str)

@@ -9,14 +9,19 @@ from .views import (
     RoomList,
     SettingsView,
     StatsView, RoomDefinitionList, RoomDefinitionUpdate, RoomDefinitionDelete, RoomDefinitionCreate, RoomRemoveOrder,
-    RoomAddOrder,
+    RoomAddOrder, RandomizeView,
 )
 
 urlpatterns = [
     re_path(
-        r"^control/event/(?P<organizer>[^/]+)/(?P<event>[^/]+)/roomsharing/",
+        r"^control/event/(?P<organizer>[^/]+)/(?P<event>[^/]+)/roomsharing$",
         SettingsView.as_view(),
         name="control.room.settings",
+    ),
+    re_path(
+        r"^control/event/(?P<organizer>[^/]+)/(?P<event>[^/]+)/roomsharing/randomize$",
+        RandomizeView.as_view(),
+        name="control.room.randomize",
     ),
     re_path(
         r"^control/event/(?P<organizer>[^/]+)/(?P<event>[^/]+)/orders/(?P<code>[0-9A-Z]+)/room$",

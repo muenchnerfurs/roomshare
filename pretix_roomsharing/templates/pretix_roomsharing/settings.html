@@ -6,10 +6,20 @@
   <h1>{% trans "Roomsharing Settings" %}</h1>
     <form action="" method="post" class="form-horizontal" enctype="multipart/form-data">
         {% csrf_token %}
-        <div class="form-group submit-group">
-            <button type="submit" class="btn btn-primary btn-save">
+        <fieldset>
+            <legend>{% trans "General settings" %}</legend>
+            {% bootstrap_field form.roomsharing_room_mate_display layout="control" %}
+        </fieldset>
+        <fieldset>
+            <legend>{% trans "Random room assignment" %}</legend>
+            <a class="btn btn-primary btn-lg" href="{% url "plugins:pretix_roomsharing:control.room.randomize" organizer=request.organizer.slug event=request.event.slug %}">
                 <span class="fa fa-random" aria-hidden="true"></span>
                 {% trans "Assign random rooms" %}
+            </a>
+        </fieldset>
+        <div class="form-group submit-group">
+            <button type="submit" class="btn btn-primary btn-save">
+                {% trans "Save" %}
             </button>
         </div>
     </form>
