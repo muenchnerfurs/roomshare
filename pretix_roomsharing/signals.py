@@ -12,7 +12,7 @@ from django.utils.translation import gettext_lazy as _
 from pretix.base.models import Event, Order, OrderPosition, CartPosition
 from pretix.base.services.orders import OrderError
 from pretix.base.settings import settings_hierarkey
-from pretix.base.signals import logentry_display, order_placed, order_canceled, validate_order
+from pretix.base.signals import logentry_display, order_placed, order_canceled, validate_order, layout_text_variables
 from pretix.control.forms.filter import FilterForm
 from pretix.control.signals import (
     nav_event,
@@ -296,6 +296,34 @@ class RoomSearchForm(FilterForm):
         if fdata.get("room_name"):
             qs = qs.filter(orderroom__room__name__iexact=fdata.get("room_name"))
         return qs
+
+
+@receiver(layout_text_variables, dispatch_uid="room_layout_text_variables")
+def room_layout_text_variables(sender, *args, **kwargs):
+    def get_room_name(order: Order):
+        if hasattr(order, "orderroom"):
+            return order.orderroom.room.name
+        else:
+            ""
+
+    def get_room_type(order: Order):
+        if hasattr(order, "orderroom"):
+            return order.orderroom.room.room_definition.type
+        else:
+            ""
+
+    return {
+        "room_name": {
+            "label": _("Room Name"),
+            "editor_sample": "Dragon Cave",
+            "evaluate": lambda orderposition, order, event: get_room_name(order),
+        },
+        "room_type": {
+            "label": _("Room Type"),
+            "editor_sample": "Double Bedroom",
+            "evaluate": lambda orderposition, order, event: get_room_type(order),
+        },
+    }
 
 
 try:
