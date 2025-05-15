@@ -52,8 +52,9 @@ class SettingsView(EventSettingsViewMixin, EventSettingsFormView):
         )
 
 
-class RandomizeView(TemplateView):
+class RandomizeView(EventPermissionRequiredMixin, TemplateView):
     template_name = "pretix_roomsharing/randomize.html"
+    permission = "can_change_orders"
 
     def post(self, request, *args, **kwargs):
         self.randomize_rooms(request)
