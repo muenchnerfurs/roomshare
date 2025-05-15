@@ -4,6 +4,7 @@ USER root
 
 ADD . /roomshare
 RUN cd /roomshare && pip3 install -e .
+RUN pip3 install pretix-fontpack-free
 
 USER pretixuser
 
