@@ -8,9 +8,11 @@ license = {file = "LICENSE"}
 keywords = ["pretix"]
 authors = [
     {name = "Christiaan de Die le Clercq (techwolf12)", email = "contact@techwolf12.nl"},
+    {name = "Münchner Furs e. V."},
 ]
 maintainers = [
     {name = "Christiaan de Die le Clercq (techwolf12)", email = "contact@techwolf12.nl"},
+    {name = "Münchner Furs e. V."},
 ]
 
 dependencies = [

@@ -46,6 +46,7 @@ License
 
 
 Copyright 2022 Christiaan de Die le Clercq (techwolf12)
+Copyright 2025 Münchner Furs e. V.
 
 Released under the terms of the Apache License 2.0
 
