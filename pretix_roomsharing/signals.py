@@ -28,9 +28,11 @@ from pretix.presale.signals import (
 )
 from pretix.presale.views import get_cart
 from pretix.presale.views.cart import cart_session
+from pretix.base.signals import register_data_exporters
 
 from .checkoutflow import RoomStep
 from .models import OrderRoom, Room
+from .exporter import RoomExporter
 
 logger = logging.getLogger(__name__)
 
@@ -330,6 +332,10 @@ def room_layout_text_variables(sender, *args, **kwargs):
             "evaluate": lambda orderposition, order, event: get_room_type(order),
         },
     }
+
+@receiver(register_data_exporters, dispatch_uid="room_data_exporter")
+def room_register_data_exporter(sender, **kwargs):
+    return RoomExporter
 
 
 try:
