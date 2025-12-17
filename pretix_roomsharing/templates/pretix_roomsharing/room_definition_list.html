@@ -30,7 +30,9 @@
                 <tr>
                     <td>
                         <strong>
-                            {{ d.name }}
+                            <a href="{% url "plugins:pretix_roomsharing:event.room_definition.edit" event=request.event.slug organizer=request.event.organizer.slug pk=d.pk %}">
+                                {{ d.name }}
+                            </a>
                         </strong>
                     </td>
                     <td>
