@@ -18,7 +18,7 @@ class RoomDefinitionForm(I18nModelForm):
 
     class Meta:
         model = RoomDefinition
-        fields = ['name', 'items', 'capacity', 'max_rooms']
+        fields = ['name', 'items', 'capacity', 'extra_capacity', 'max_rooms']
         widgets = {'items': forms.CheckboxSelectMultiple(attrs={'class': 'scrolling-multiple-choice'}), }
         field_classes = {'items': ItemMultipleChoiceField}
 
@@ -37,6 +37,11 @@ class RoomsharingSettingsForm(SettingsForm):
         help_text=_("How room mates are displayed to users. See pdf output for possible values."),
         required=True
     )
+    roomsharing_room_host_random_control = forms.BooleanField(
+        label=_("Allow room hosts to control random assignment to optional beds"),
+        help_text=_("When enabled, each room host can individually control whether extra beds are filled by random assignment at the end of the booking period."),
+        required=False
+    )
 
     def clean_roomsharing_room_mate_display(self):
         value = self.cleaned_data.get("roomsharing_room_mate_display")
@@ -45,3 +50,11 @@ class RoomsharingSettingsForm(SettingsForm):
             raise forms.ValidationError(_("Invalid value"), code="invalid")
 
         return value
+
+
+class RandomizeRoomsConfirmationForm(forms.Form):
+    force_assignment = forms.BooleanField(
+        label=_("Force assignment."),
+        required=False,
+        help_text=_("Normally this assignment fails, if there is not enough total available capacity to accommodate all orders, and no orders will be assigned. With this enabled, all orders which can be assigned, will be assigned.")
+    )

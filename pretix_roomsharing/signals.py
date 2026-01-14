@@ -353,3 +353,4 @@ except ImportError:
     pass
 
 settings_hierarkey.add_default("roomsharing_room_mate_display", "order", str)
+settings_hierarkey.add_default("roomsharing_room_host_random_control", False, bool)

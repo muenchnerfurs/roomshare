@@ -5,18 +5,22 @@
 {% load bootstrap3 %}
 {% block title %}{% trans "Assign random rooms" %}{% endblock %}
 {% block content %}
-	<h1>{% trans "Assign random rooms" %}</h1>
-	<form action="" method="post" class="form-horizontal">
-		{% csrf_token %}
-		<p>{% blocktrans trimmed with name=room_definition.name %}Are you sure you want to randomly assign all unassigned users?{% endblocktrans %}</p>
-		<div class="form-group submit-group">
-            <a href="{% url "plugins:pretix_roomsharing:control.room.settings" organizer=request.event.organizer.slug event=request.event.slug %}" class="btn btn-default btn-cancel">
+    <h1>{% trans "Assign random rooms" %}</h1>
+    <form action="" method="post" class="form-horizontal">
+        {% csrf_token %}
+        <p>Are you sure you want to randomly assign all unassigned users?</p>
+        <fieldset>
+            {% bootstrap_field form.force_assignment layout="control" %}
+        </fieldset>
+        <div class="form-group submit-group">
+            <a href="{% url "plugins:pretix_roomsharing:control.room.settings" organizer=request.event.organizer.slug event=request.event.slug %}"
+               class="btn btn-default btn-cancel">
                 {% trans "Cancel" %}
             </a>
             <button type="submit" class="btn btn-danger btn-save">
                 <span class="fa fa-random" aria-hidden="true"></span>
                 {% trans "Assign random rooms" %}
             </button>
-		</div>
-	</form>
+        </div>
+    </form>
 {% endblock %}

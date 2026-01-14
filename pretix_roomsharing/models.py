@@ -18,6 +18,7 @@ class RoomDefinition(LoggedModel):
     name = models.CharField(max_length=255, verbose_name=_("Name"))
     capacity = models.PositiveIntegerField(verbose_name=_("Capacity"))
     max_rooms = models.PositiveIntegerField(verbose_name=_("Max Rooms")) # TODO: Use a quota here?
+    extra_capacity = models.PositiveIntegerField(default=0, verbose_name=_("Optional Extra Capacity"))
 
     class Meta:
         unique_together = (("event", "name"),)
@@ -42,6 +43,8 @@ class Room(LoggedModel):
     )
     name = models.CharField(max_length=190, verbose_name=_("Name"))
     password = models.CharField(max_length=190, blank=True, verbose_name=_("Password"))
+    disable_random_extra = models.BooleanField(default=False, verbose_name=_("Disable randomly assigning to extra capacity"))
+    optout_random_extra = models.BooleanField(default=False, verbose_name=_("Opt out of randomly assigning to extra capacity"))
 
     class Meta:
         unique_together = (("event", "name"),)
@@ -50,8 +53,11 @@ class Room(LoggedModel):
     def __str__(self):
         return self.name
 
-    def has_capacity(self):
-        return self.get_valid_room_orders().count() < self.room_definition.capacity
+    def has_capacity(self, use_extra: bool) -> bool:
+        capacity = self.room_definition.capacity
+        if use_extra:
+            capacity += self.room_definition.extra_capacity
+        return self.get_valid_room_orders().count() < capacity
 
     def touch(self):
         order_rooms = self.get_valid_room_orders()

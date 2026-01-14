@@ -30,7 +30,7 @@ from pretix.multidomain.urlreverse import eventreverse
 from pretix.presale.views import EventViewMixin, CartMixin
 from pretix.presale.views.order import OrderDetailMixin
 
-from .forms import RoomDefinitionForm, OrderRoomForm, RoomsharingSettingsForm
+from .forms import RoomDefinitionForm, OrderRoomForm, RoomsharingSettingsForm, RandomizeRoomsConfirmationForm
 from .checkoutflow import RoomCreateForm, RoomJoinForm
 from .models import OrderRoom, Room, RoomDefinition
 
@@ -52,14 +52,27 @@ class SettingsView(EventSettingsViewMixin, EventSettingsFormView):
         )
 
 
-class RandomizeView(EventPermissionRequiredMixin, TemplateView):
+class RandomRoomAssignmentError(Exception):
+    def __init__(self, message):
+        self.message = message
+        super().__init__(self.message)
+
+
+class RandomizeView(EventPermissionRequiredMixin, FormView):
     template_name = "pretix_roomsharing/randomize.html"
+    form_class = RandomizeRoomsConfirmationForm
     permission = "can_change_orders"
 
-    def post(self, request, *args, **kwargs):
-        self.randomize_rooms(request)
-        messages.success(self.request, _('Rooms have been assigned.'))
-        return redirect(self.get_success_url())
+    def form_valid(self, form):
+        try:
+            with transaction.atomic():
+                self.randomize_rooms(form.cleaned_data['force_assignment'])
+        except RandomRoomAssignmentError:
+            pass
+        else:
+            messages.success(self.request, _('Rooms have been assigned.'))
+
+        return super().form_valid(form)
 
     def get_success_url(self):
         return reverse(
@@ -70,19 +83,20 @@ class RandomizeView(EventPermissionRequiredMixin, TemplateView):
             },
         )
 
-    def randomize_rooms(self, request):
-        event = request.event
-        items = RoomDefinition.objects.values("items").distinct()
-        order_pks = OrderPosition.objects.filter(order__event=event, order__status=Order.STATUS_PAID, order__orderroom__isnull=True, item__in=items).values_list("order", flat=True).distinct()
-        unassigned = Order.objects.filter(pk__in=order_pks)
+    def randomize_rooms(self, force: bool):
+        event = self.request.event
+        items = event.room_definitions.values("items").distinct()
         created_rooms = []
-        existing_rooms = [room for room in Room.objects.all() if room.has_capacity()]
-        def find_or_create_room(order):
+        existing_rooms = []
+
+        # Create rooms for definitions which have not yet been exhausted and fill them up to their normal capacity
+        def create_or_fill_rooms(order: Order) -> tuple[Room | None, bool]:
             definition_pks = OrderPosition.objects.filter(order__event=event, order=order, item__in=items).values("item__room_definitions").distinct()
             definitions = RoomDefinition.objects.filter(pk__in=definition_pks)
+
             # Try to find a newly created room
             for created_room in list(created_rooms):
-                if not created_room.has_capacity():
+                if not created_room.has_capacity(False):
                     created_rooms.remove(created_room)
                     continue
 
@@ -95,28 +109,70 @@ class RandomizeView(EventPermissionRequiredMixin, TemplateView):
                 if definition.is_available():
                     name = str(uuid.uuid4())
                     password = str(uuid.uuid4())
-                    created_room = Room.objects.create(event=event, room_definition=definition, name=name, password=password)
+                    created_room = Room.objects.create(event=event, room_definition=definition, name=name, password=password, disable_random_extra=False, optout_random_extra=False)
                     created_rooms.append(created_room)
                     return created_room, True
 
-            #Try to find an already existing room
-            for existing_room in list(existing_rooms):
-                if not existing_room.has_capacity():
-                    existing_rooms.remove(existing_room)
-
-                for room_definition in definitions:
-                    if existing_room.room_definition == room_definition:
-                        return existing_room, False
-
-            messages.error(request, _(f'Failed to find a room for {order.code}.'))
             return None, False
 
+        # Fill rooms which have not been newly created by create_or_fill_rooms and still have normal capacity
+        def fill_existing_rooms(order: Order, extra_capacity: bool) -> Room | None:
+            definition_pks = OrderPosition.objects.filter(order__event=event, order=order, item__in=items).values("item__room_definitions").distinct()
+            definitions = RoomDefinition.objects.filter(pk__in=definition_pks)
+
+            # Try to find an already existing room with normal capacity
+            for existing_room in list(existing_rooms):
+                if not existing_room.has_capacity(extra_capacity):
+                    existing_rooms.remove(existing_room)
+                    continue
+
+                if existing_room.room_definition in definitions:
+                    return existing_room
+
+            return None
+
+        # Take a snapshot of all currently existing rooms to fill after we can no longer create and fill new ones
+        existing_rooms = [room for room in event.rooms.all() if room.has_capacity(False)]
+        order_pks = OrderPosition.objects.filter(order__event=event, order__status=Order.STATUS_PAID, order__orderroom__isnull=True, item__in=items).values_list("order", flat=True).distinct()
+        unassigned = Order.objects.filter(pk__in=order_pks).all()
+        tmp = []
         for order in unassigned:
-            room, created = find_or_create_room(order)
-            OrderRoom.objects.create(order=order, room=room, is_admin=created)
+            room, created = create_or_fill_rooms(order)
+            if room:
+                OrderRoom.objects.create(order=order, room=room, is_admin=created)
+            else:
+                tmp.append(order)
+
+        unassigned = tmp
+        tmp = []
+        for order in unassigned:
+            room = fill_existing_rooms(order, False)
+            if room:
+                OrderRoom.objects.create(order=order, room=room, is_admin=False)
+            else:
+                tmp.append(order)
+
+        allow_optout = event.settings.get("roomsharing_room_host_random_control")
+        existing_rooms = [room for room in event.rooms.all() if room.has_capacity(not (room.disable_random_extra or (allow_optout and room.optout_random_extra)))]
+        unassigned = tmp
+        tmp = []
+        for order in unassigned:
+            room = fill_existing_rooms(order, True)
+            if room:
+                OrderRoom.objects.create(order=order, room=room, is_admin=False)
+            else:
+                tmp.append(order)
+
+        unassigned = tmp
+        if len(unassigned) != 0:
+            orders = [str(order.code) for order in unassigned]
+            joined = str.join('\n', orders)
+            messages.error(self.request, _(f'Failed to find a room for:\n %(joined)') % {'joined': joined})
+            if not force:
+                raise RandomRoomAssignmentError("Failed to assign all orders to a room")
 
 
-class RoomChangePasswordForm(forms.Form):
+class RoomChangeSettingsForm(forms.Form):
     password = forms.CharField(
         max_length=190,
         label=_("New room password"),
@@ -127,7 +183,14 @@ class RoomChangePasswordForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.event = kwargs.pop("event")
+        optout_random_extra = kwargs.pop("optout_random_extra")
         super().__init__(*args, **kwargs)
+        if self.event.settings.get("roomsharing_room_host_random_control"):
+            self.fields["optout_random_extra"] = forms.BooleanField(
+                label=_("Opt out of randomly assigning to extra capacity"),
+                required=False,
+                initial=optout_random_extra
+            )
 
 
 @method_decorator(xframe_options_exempt, "dispatch")
@@ -216,6 +279,10 @@ class OrderRoomChange(EventViewMixin, OrderDetailMixin, CartMixin, TemplateView)
             return self.get(request, *args, **kwargs)
 
         c.room.password = self.change_form.cleaned_data["password"]
+        try:
+            c.room.optout_random_extra = self.change_form.cleaned_data["optout_random_extra"]
+        except KeyError:
+            pass
         c.room.save()
         self.order.log_action("pretix_roomsharing.order.changed", data={"room": c.pk})
         messages.success(request, _("Okay, we changed the password. Make sure to tell your friends!"))
@@ -244,7 +311,7 @@ class OrderRoomChange(EventViewMixin, OrderDetailMixin, CartMixin, TemplateView)
         cleaned_data = self.join_form.cleaned_data
         room = cleaned_data["room"]
 
-        if not room.has_capacity():
+        if not room.has_capacity(True):
             messages.error(request, _("The chosen room is already full. Please choose another one."))
             return self.get(request, *args, **kwargs)
 
@@ -268,7 +335,7 @@ class OrderRoomChange(EventViewMixin, OrderDetailMixin, CartMixin, TemplateView)
             messages.error(request, _("No more rooms of this type available. Please choose another one."))
             return self.get(request, *args, **kwargs)
 
-        room = Room.objects.create(event=request.event, name=self.create_form.cleaned_data["name"], password=self.create_form.cleaned_data["password"], room_definition=room_definition)
+        room = Room.objects.create(event=request.event, name=self.create_form.cleaned_data["name"], password=self.create_form.cleaned_data["password"], room_definition=room_definition, disable_random_extra=False, optout_random_extra=False)
         OrderRoom.objects.create(room=room, order=self.order, is_admin=True)
         self.order.log_action("pretix_roomsharing.order.created", data={"room": room.pk})
         messages.success(request, _("Great, we saved your changes!"))
@@ -277,9 +344,10 @@ class OrderRoomChange(EventViewMixin, OrderDetailMixin, CartMixin, TemplateView)
 
     @cached_property
     def change_form(self):
-        return RoomChangePasswordForm(
+        return RoomChangeSettingsForm(
             event=self.request.event,
             prefix="change",
+            optout_random_extra=False,
             data=self.request.POST
             if self.request.method == "POST"
             and self.request.POST.get("room_mode") == "change"
@@ -393,7 +461,7 @@ class RoomList(EventPermissionRequiredMixin, ListView):
 class RoomForm(forms.ModelForm):
     class Meta:
         model = Room
-        fields = ["name", "password"]
+        fields = ["name", "password", "disable_random_extra", "optout_random_extra"]
 
     def __init__(self, *args, **kwargs):
         self.event = kwargs.pop("event")

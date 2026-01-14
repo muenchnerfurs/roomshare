@@ -47,6 +47,11 @@ class RoomCreateForm(forms.Form):
         else:
             self.fields['room_definition'].initial = ("", "")
             self.fields['room_definition'].disabled = True
+        if self.event.settings.get("roomsharing_room_host_random_control"):
+            self.fields["optout_random_extra"] = forms.BooleanField(
+                label=_("Opt out of randomly assigning to extra capacity"),
+                required=False
+            )
 
     def clean_name(self):
         name = self.cleaned_data.get("name")
@@ -210,7 +215,7 @@ class RoomStep(CartMixin, TemplateFlowStep):
         if order_room and order_room.room.pk == room.pk:
             return redirect(self.get_next_url(request))
 
-        if not room.has_capacity():
+        if not room.has_capacity(True):
             messages.error(
                 self.request,
                 _("The chosen room is already full. Please choose another one."),
@@ -250,7 +255,7 @@ class RoomStep(CartMixin, TemplateFlowStep):
             room.room_definition = room_definition
             room.save()
         except Room.DoesNotExist:
-            room = Room.objects.create(event=self.event, room_definition=room_definition, name=cleaned_data["name"], password=cleaned_data["password"])
+            room = Room.objects.create(event=self.event, room_definition=room_definition, name=cleaned_data["name"], password=cleaned_data["password"], disable_random_extra=False, optout_random_extra=cleaned_data["optout_random_extra"])
             pass
 
         order_room = OrderRoom.objects.create(order=None, cart_id=get_or_create_cart_id(request), room=room, is_admin=True)
