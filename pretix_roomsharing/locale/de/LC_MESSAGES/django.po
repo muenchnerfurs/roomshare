@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-15 08:04+0200\n"
+"POT-Creation-Date: 2026-01-17 17:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -13,8 +13,8 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: pretix_roomsharing/apps.py:16 pretix_roomsharing/signals.py:48
-#: pretix_roomsharing/signals.py:204
+#: pretix_roomsharing/apps.py:16 pretix_roomsharing/exporter.py:9
+#: pretix_roomsharing/signals.py:50 pretix_roomsharing/signals.py:206
 #: pretix_roomsharing/templates/pretix_roomsharing/order_info.html:6
 msgid "Roomsharing"
 msgstr "Roomsharing"
@@ -37,31 +37,36 @@ msgstr ""
 "erstellten Zimmer beitreten möchtest, wähle bitte 'Zimmer beitreten' statt "
 "'Zimmer erstellen'."
 
-#: pretix_roomsharing/checkoutflow.py:21 pretix_roomsharing/checkoutflow.py:81
+#: pretix_roomsharing/checkoutflow.py:21 pretix_roomsharing/checkoutflow.py:86
 msgid "This field is required."
 msgstr "Dieses Feld ist erforderlich."
 
-#: pretix_roomsharing/checkoutflow.py:24 pretix_roomsharing/signals.py:328
+#: pretix_roomsharing/checkoutflow.py:24 pretix_roomsharing/signals.py:330
 msgid "Room Type"
 msgstr "Zimmertyp"
 
-#: pretix_roomsharing/checkoutflow.py:27 pretix_roomsharing/checkoutflow.py:89
-#: pretix_roomsharing/signals.py:291
+#: pretix_roomsharing/checkoutflow.py:27 pretix_roomsharing/checkoutflow.py:94
+#: pretix_roomsharing/signals.py:293
 #: pretix_roomsharing/templates/pretix_roomsharing/control_list.html:22
 msgid "Room name"
 msgstr "Zimmername"
 
-#: pretix_roomsharing/checkoutflow.py:32 pretix_roomsharing/checkoutflow.py:94
+#: pretix_roomsharing/checkoutflow.py:32 pretix_roomsharing/checkoutflow.py:99
 msgid "Room password"
 msgstr "Zimmerpasswort"
 
-#: pretix_roomsharing/checkoutflow.py:79
+#: pretix_roomsharing/checkoutflow.py:52 pretix_roomsharing/models.py:47
+#: pretix_roomsharing/views.py:190
+msgid "Opt out of randomly assigning to extra capacity"
+msgstr "Zufällige Zuweisung zu zusätzlicher Kapazität nicht zustimmen"
+
+#: pretix_roomsharing/checkoutflow.py:84
 msgid "This room does not exist. Are you sure you entered the name correctly?"
 msgstr ""
 "Dieses Zimmer existiert nicht. Bist du sicher, dass du den Namen korrekt "
 "eingegeben hast?"
 
-#: pretix_roomsharing/checkoutflow.py:83
+#: pretix_roomsharing/checkoutflow.py:88
 msgid ""
 "The password does not match. Please enter the password exactly as your "
 "friends send it."
@@ -69,27 +74,27 @@ msgstr ""
 "Das Passwort stimmt nicht überein. Bitte gib das Passwort genau so ein, wie "
 "es dir geschickt wurde"
 
-#: pretix_roomsharing/checkoutflow.py:159
+#: pretix_roomsharing/checkoutflow.py:164
 msgctxt "checkoutflow"
 msgid "Room"
 msgstr "Zimmer"
 
-#: pretix_roomsharing/checkoutflow.py:185
+#: pretix_roomsharing/checkoutflow.py:190
 msgid "We couldn't handle your input, please check below for errors."
 msgstr ""
 "Deine Eingabe konnte nicht verarbeitet werden. Bitte überprüfe unten die "
 "Fehlermeldung"
 
-#: pretix_roomsharing/checkoutflow.py:216 pretix_roomsharing/views.py:248
+#: pretix_roomsharing/checkoutflow.py:221 pretix_roomsharing/views.py:315
 msgid "The chosen room is already full. Please choose another one."
 msgstr "Das gewählte Zimmer ist bereits voll. Bitte wähle einen anderen."
 
-#: pretix_roomsharing/checkoutflow.py:236 pretix_roomsharing/views.py:268
+#: pretix_roomsharing/checkoutflow.py:241 pretix_roomsharing/views.py:335
 msgid "No more rooms of this type available. Please choose another one."
 msgstr ""
 "Es sind keine Zimmer dieses Typs mehr verfügbar. Bitte wähle einen anderen."
 
-#: pretix_roomsharing/checkoutflow.py:376
+#: pretix_roomsharing/checkoutflow.py:381
 #, python-brace-format
 msgid ""
 "\n"
@@ -108,6 +113,42 @@ msgstr ""
 "                                    Bitte wähle ein anderes Zimmer.\n"
 "                                "
 
+#: pretix_roomsharing/exporter.py:8
+msgid "Download a spreadsheet of all rooms and their details."
+msgstr "Tabelle aller Zimmer und deren Details herunterladen."
+
+#: pretix_roomsharing/exporter.py:13
+msgid "Order Id"
+msgstr "Bestellung-ID"
+
+#: pretix_roomsharing/exporter.py:13
+msgid "Order Code"
+msgstr "Bestell-Code"
+
+#: pretix_roomsharing/exporter.py:13
+msgid "Order Status"
+msgstr "Bestellstatus"
+
+#: pretix_roomsharing/exporter.py:13
+msgid "Customer Name"
+msgstr "Kundenname"
+
+#: pretix_roomsharing/exporter.py:13
+msgid "Order Email"
+msgstr "Email der Bestellung"
+
+#: pretix_roomsharing/exporter.py:13
+msgid "Internal Room Name"
+msgstr "Interner Zimmername"
+
+#: pretix_roomsharing/exporter.py:13
+msgid "Room Id"
+msgstr "Zimmer-ID"
+
+#: pretix_roomsharing/exporter.py:13
+msgid "Is Admin"
+msgstr "Ist Admin"
+
 #: pretix_roomsharing/forms.py:36
 msgid "Room mate display"
 msgstr "Mitbewohner Anzeige"
@@ -116,19 +157,44 @@ msgstr "Mitbewohner Anzeige"
 msgid ""
 "How room mates are displayed to users. See pdf output for possible values."
 msgstr ""
-"Wie Mitbewohner den Benutzern angezeigt werden. Mögliche werte sind die gleichen wie für das pdf plugin."
+"Wie Mitbewohner den Benutzern angezeigt werden. Mögliche werte sind die "
+"gleichen wie für das pdf plugin."
 
-#: pretix_roomsharing/forms.py:45
-#, fuzzy
-#| msgid "Invalid room."
+#: pretix_roomsharing/forms.py:41
+msgid "Allow room hosts to control random assignment to optional beds"
+msgstr "Hosts erlauben, die zufällige Zuweisung zu Zusatzbetten zu verweigern"
+
+#: pretix_roomsharing/forms.py:42
+msgid ""
+"When enabled, each room host can individually control whether extra beds are "
+"filled by random assignment at the end of the booking period."
+msgstr ""
+"Wenn angekreuzt, darf jeder Raum für sich darüber entscheiden, ob am ende "
+"der Buchungsperiode Zusatzbetten zufällig belegt werden dürfen."
+
+#: pretix_roomsharing/forms.py:50
 msgid "Invalid value"
-msgstr "Ungültiges Zimmer."
+msgstr "Ungültiger Wert."
+
+#: pretix_roomsharing/forms.py:57
+msgid "Force assignment."
+msgstr "Zuweisung erzwingen."
+
+#: pretix_roomsharing/forms.py:59
+msgid ""
+"Normally this assignment fails, if there is not enough total available "
+"capacity to accommodate all orders, and no orders will be assigned. With "
+"this enabled, all orders which can be assigned, will be assigned."
+msgstr ""
+"Normalerweise schlägt die Zuweisung fehl, wenn nicht alle Bestellungen "
+"zugewiesen werden können. Wenn angekreuzt, werden alle Bestellungen die "
+"zugewiesen werden können auch zugewiesen."
 
 #: pretix_roomsharing/models.py:15
 msgid "Products"
 msgstr "Produkte"
 
-#: pretix_roomsharing/models.py:18 pretix_roomsharing/models.py:43
+#: pretix_roomsharing/models.py:18 pretix_roomsharing/models.py:44
 #: pretix_roomsharing/templates/pretix_roomsharing/room_definition_list.html:21
 msgid "Name"
 msgstr "Name"
@@ -143,118 +209,132 @@ msgstr "Kapazität"
 msgid "Max Rooms"
 msgstr "Maximale Zimmeranzahl"
 
-#: pretix_roomsharing/models.py:41
+#: pretix_roomsharing/models.py:21
+msgid "Optional Extra Capacity"
+msgstr "Optionale Zusatzkapazität"
+
+#: pretix_roomsharing/models.py:42
 #: pretix_roomsharing/templates/pretix_roomsharing/room_definition_edit.html:6
 #: pretix_roomsharing/templates/pretix_roomsharing/room_definition_edit.html:8
 msgid "Room Definition"
 msgstr "Zimmerdefinition"
 
-#: pretix_roomsharing/models.py:44
+#: pretix_roomsharing/models.py:45
 #, fuzzy
 #| msgid "Room password"
 msgid "Password"
 msgstr "Zimmerpasswort"
 
-#: pretix_roomsharing/models.py:94
+#: pretix_roomsharing/models.py:46
+msgid "Disable randomly assigning to extra capacity"
+msgstr "Zufällige Zuweisung zu zusätzlicher Kapazität deaktivieren"
+
+#: pretix_roomsharing/models.py:100
 #: pretix_roomsharing/templates/pretix_roomsharing/checkout_confirm.html:12
 #: pretix_roomsharing/templates/pretix_roomsharing/control_order_info.html:15
 #: pretix_roomsharing/templates/pretix_roomsharing/control_order_info.html:21
 msgid "Room"
 msgstr "Zimmer"
 
-#: pretix_roomsharing/models.py:96
+#: pretix_roomsharing/models.py:102
 msgid "Room administrator"
 msgstr "Zimmeradministrator"
 
-#: pretix_roomsharing/signals.py:182
+#: pretix_roomsharing/signals.py:184
 msgid "The user left a room."
 msgstr "Der Nutzer hat ein Zimmer verlassen."
 
-#: pretix_roomsharing/signals.py:183
+#: pretix_roomsharing/signals.py:185
 msgid "The user joined a room."
 msgstr "Der Nutzer ist einem Zimmer beigetreten."
 
-#: pretix_roomsharing/signals.py:184
+#: pretix_roomsharing/signals.py:186
 msgid "The user created a new room."
 msgstr "Der Nutzer hat ein Zimmer erstellt."
 
-#: pretix_roomsharing/signals.py:185
+#: pretix_roomsharing/signals.py:187
 msgid "The user changed a room password."
 msgstr "Der Nutzer hat das Zimmerpasswort geändert."
 
-#: pretix_roomsharing/signals.py:186 pretix_roomsharing/signals.py:188
-#: pretix_roomsharing/views.py:478
+#: pretix_roomsharing/signals.py:188 pretix_roomsharing/signals.py:190
+#: pretix_roomsharing/views.py:546
 msgid "The room has been deleted."
 msgstr "Das Zimmer wurde gelöscht."
 
-#: pretix_roomsharing/signals.py:187
+#: pretix_roomsharing/signals.py:189
 msgid "The room has been changed."
 msgstr "Das Zimmer wurde verändert."
 
-#: pretix_roomsharing/signals.py:216
+#: pretix_roomsharing/signals.py:218
 msgid "Rooms"
 msgstr "Zimmer"
 
-#: pretix_roomsharing/signals.py:227
+#: pretix_roomsharing/signals.py:229
 #: pretix_roomsharing/templates/pretix_roomsharing/room_definition_list.html:6
 #: pretix_roomsharing/templates/pretix_roomsharing/room_definition_list.html:8
 msgid "Room Definitions"
 msgstr "Zimmerdefinitionen"
 
-#: pretix_roomsharing/signals.py:259
+#: pretix_roomsharing/signals.py:261
 msgid "Room Validation Error. Invalid room. Try to do the room step again."
-msgstr "Zimmerüberprüfungsfehler. Ungültiges Zimmer. Versuche den Zimmer Schritt noch einmal durchzuführen."
-
-#: pretix_roomsharing/signals.py:270
-msgid ""
-"Room Validation Error. Invalid Order Room. Try to do the room step again."
 msgstr ""
-"Zimmerüberprüfungsfehler. Ungültiger Orderr Room. Versuche den Zimmer Schritt "
+"Zimmerüberprüfungsfehler. Ungültiges Zimmer. Versuche den Zimmer Schritt "
 "noch einmal durchzuführen."
 
 #: pretix_roomsharing/signals.py:272
 msgid ""
+"Room Validation Error. Invalid Order Room. Try to do the room step again."
+msgstr ""
+"Zimmerüberprüfungsfehler. Ungültiger Orderr Room. Versuche den Zimmer "
+"Schritt noch einmal durchzuführen."
+
+#: pretix_roomsharing/signals.py:274
+msgid ""
 "Room Validation Error. No items in cart which grant a room. Try to do the "
 "room step again."
 msgstr ""
-"Zimmerüberprüfungsfehler. Keine Positionen im Einkaufswagen die dich für "
-"ein Zimmer berechtigen. Versuche den Zimmer Schritt noch einmal durchzuführren."
+"Zimmerüberprüfungsfehler. Keine Positionen im Einkaufswagen die dich für ein "
+"Zimmer berechtigen. Versuche den Zimmer Schritt noch einmal durchzuführren."
 
-#: pretix_roomsharing/signals.py:278
+#: pretix_roomsharing/signals.py:280
 msgid ""
 "Room Validation Error. Room mode is join but no joined room or room created. "
 "Try to do the room step again."
 msgstr ""
-"Zimmerüberprüfungsfehler. Zimmermodus ist join, aber keinem Zimmer beigetreten "
-"oder ein Zimmer erstellt. Versuche den Zimmer Schritt noch einmal durchzuführen."
+"Zimmerüberprüfungsfehler. Zimmermodus ist join, aber keinem Zimmer "
+"beigetreten oder ein Zimmer erstellt. Versuche den Zimmer Schritt noch "
+"einmal durchzuführen."
 
-#: pretix_roomsharing/signals.py:281
+#: pretix_roomsharing/signals.py:283
 msgid ""
 "Room Validation Error. Room mode is create but no room created or room "
 "joined. Try to do the room step again."
 msgstr ""
-"Zimmerüberprüfungsfehler. Zimmermodus ist create, aber kein Zimmer erstellt oder "
-"keinem Zimmer beigetreten. Versuche den Zimmer Schritt noch einmal durchzuführen."
+"Zimmerüberprüfungsfehler. Zimmermodus ist create, aber kein Zimmer erstellt "
+"oder keinem Zimmer beigetreten. Versuche den Zimmer Schritt noch einmal "
+"durchzuführen."
 
-#: pretix_roomsharing/signals.py:284
+#: pretix_roomsharing/signals.py:286
 msgid ""
 "Room Validation Error. Room mode is none but no room created or no room "
 "joined. Try to do the room step again."
 msgstr ""
-"Zimmerüberprüfungsfehler. Zimmermodus ist none, aber kein Zimmer erstellt oder "
-"keinem Zimmer beigetreten. Versuche den Zimmer Schritt noch einmal durchzuführen."
+"Zimmerüberprüfungsfehler. Zimmermodus ist none, aber kein Zimmer erstellt "
+"oder keinem Zimmer beigetreten. Versuche den Zimmer Schritt noch einmal "
+"durchzuführen."
 
-#: pretix_roomsharing/signals.py:286
+#: pretix_roomsharing/signals.py:288
 msgid ""
 "Room Validation Error. Invalid room mode. Try to do the room step again."
 msgstr ""
-"Zimmerüberprüfungsfehler. Ungültiger Zimmermodus. Versuche den Zimmer Schritt noch einmal durchzuführren."
+"Zimmerüberprüfungsfehler. Ungültiger Zimmermodus. Versuche den Zimmer "
+"Schritt noch einmal durchzuführren."
 
-#: pretix_roomsharing/signals.py:291
+#: pretix_roomsharing/signals.py:293
 msgid "Exact matches only"
 msgstr "Nur exakte Übereinstimmungen"
 
-#: pretix_roomsharing/signals.py:323
+#: pretix_roomsharing/signals.py:325
 #, fuzzy
 #| msgid "Room name"
 msgid "Room Name"
@@ -341,7 +421,7 @@ msgstr ""
 #: pretix_roomsharing/templates/pretix_roomsharing/control_delete.html:17
 #: pretix_roomsharing/templates/pretix_roomsharing/control_order_room_change.html:25
 #: pretix_roomsharing/templates/pretix_roomsharing/control_order_room_delete.html:16
-#: pretix_roomsharing/templates/pretix_roomsharing/randomize.html:14
+#: pretix_roomsharing/templates/pretix_roomsharing/randomize.html:17
 #: pretix_roomsharing/templates/pretix_roomsharing/room_definition_delete.html:14
 msgid "Cancel"
 msgstr "Abbrechen"
@@ -406,8 +486,8 @@ msgstr ""
 #: pretix_roomsharing/templates/pretix_roomsharing/control_detail.html:73
 #: pretix_roomsharing/templates/pretix_roomsharing/control_order_room_change.html:28
 #: pretix_roomsharing/templates/pretix_roomsharing/order_room_change.html:46
-#: pretix_roomsharing/templates/pretix_roomsharing/room_definition_edit.html:25
-#: pretix_roomsharing/templates/pretix_roomsharing/settings.html:22
+#: pretix_roomsharing/templates/pretix_roomsharing/room_definition_edit.html:26
+#: pretix_roomsharing/templates/pretix_roomsharing/settings.html:23
 msgid "Save"
 msgstr "Speichern"
 
@@ -591,14 +671,10 @@ msgstr "Zimmerpasswort ändern"
 
 #: pretix_roomsharing/templates/pretix_roomsharing/randomize.html:6
 #: pretix_roomsharing/templates/pretix_roomsharing/randomize.html:8
-#: pretix_roomsharing/templates/pretix_roomsharing/randomize.html:18
-#: pretix_roomsharing/templates/pretix_roomsharing/settings.html:17
+#: pretix_roomsharing/templates/pretix_roomsharing/randomize.html:21
+#: pretix_roomsharing/templates/pretix_roomsharing/settings.html:18
 msgid "Assign random rooms"
 msgstr "Zufällige Zimmer zuordnen"
-
-#: pretix_roomsharing/templates/pretix_roomsharing/randomize.html:11
-msgid "Are you sure you want to randomly assign all unassigned users?"
-msgstr "Bist du sicher, dass du alle nicht zugewiesenen Benutzer, zufälligen Räumen zuordnen möchten?"
 
 #: pretix_roomsharing/templates/pretix_roomsharing/room_definition_delete.html:6
 #: pretix_roomsharing/templates/pretix_roomsharing/room_definition_delete.html:8
@@ -634,77 +710,80 @@ msgstr "Roomsharing Einstellungen"
 msgid "General settings"
 msgstr "Generelle Informationen"
 
-#: pretix_roomsharing/templates/pretix_roomsharing/settings.html:14
+#: pretix_roomsharing/templates/pretix_roomsharing/settings.html:15
 msgid "Random room assignment"
 msgstr "Zufällige Zimmer zuweisung"
 
-#: pretix_roomsharing/views.py:61
+#: pretix_roomsharing/views.py:73
 msgid "Rooms have been assigned."
 msgstr "Zimmer wurden zugewiesen."
 
-#: pretix_roomsharing/views.py:111
-#, python-brace-format
-msgid "Failed to find a room for {order.code}."
-msgstr "Fehlgeschlagen für {order.code} ein Zimmer zu finden."
+#: pretix_roomsharing/views.py:170
+msgid ""
+"Failed to find a room for:\n"
+" %(joined)"
+msgstr ""
+"Es konnte kein Raum gefunden werden für:\n"
+" %(joined)"
 
-#: pretix_roomsharing/views.py:122
+#: pretix_roomsharing/views.py:178
 msgid "New room password"
 msgstr "Neues Zimmerpasswort"
 
-#: pretix_roomsharing/views.py:123
+#: pretix_roomsharing/views.py:179
 msgid "Optional"
 msgstr "Optional"
 
-#: pretix_roomsharing/views.py:152
+#: pretix_roomsharing/views.py:215
 msgid "Unknown order code or not authorized to access this order."
 msgstr ""
 "Unbekannter Bestellungscode oder nicht berechtigt auf diese Bestellung "
 "zuzugreifen."
 
-#: pretix_roomsharing/views.py:156
+#: pretix_roomsharing/views.py:219
 msgid "Your order is not eligible for a room change."
 msgstr "Deine Bestellung ist nicht für eine Zimmeränderung berechtigt."
 
-#: pretix_roomsharing/views.py:160 pretix_roomsharing/views.py:164
+#: pretix_roomsharing/views.py:223 pretix_roomsharing/views.py:227
 msgid "The room for this order cannot be changed."
 msgstr "Das Zimmer für diese Bestellung kann nicht geändert werden."
 
-#: pretix_roomsharing/views.py:187 pretix_roomsharing/views.py:378
+#: pretix_roomsharing/views.py:250 pretix_roomsharing/views.py:446
 msgid "We could not handle your input. See below for more information."
 msgstr ""
 "Deine Eingabe konnte nicht verarbeitet werden. Bitte überprüfe unten die "
 "Fehlermeldung"
 
-#: pretix_roomsharing/views.py:194
+#: pretix_roomsharing/views.py:257
 msgid "There's no room to leave."
 msgstr "Es existiert kein Zimmer der verlassen werden kann"
 
-#: pretix_roomsharing/views.py:200
+#: pretix_roomsharing/views.py:263
 msgid "Okay, you left your room successfully. How do you want to continue?"
 msgstr ""
 "Okay, du hast dein Zimmer erfolgreich verlassen. Wie möchtest du fortfahren?"
 
-#: pretix_roomsharing/views.py:210
+#: pretix_roomsharing/views.py:273
 msgid "There's no room to edit."
 msgstr "Es exisitert kein Zimmer der editiert werden kann."
 
-#: pretix_roomsharing/views.py:215
+#: pretix_roomsharing/views.py:278
 #, fuzzy
 #| msgid "You have created this room."
 msgid "You cannot edit this room."
 msgstr "Du hast dieses Zimmer erstellt."
 
-#: pretix_roomsharing/views.py:221
+#: pretix_roomsharing/views.py:288
 msgid "Okay, we changed the password. Make sure to tell your friends!"
 msgstr "Okay, das Zimmerpasswort wurde geändert. Teile es mit deinen Freunden!"
 
-#: pretix_roomsharing/views.py:231 pretix_roomsharing/views.py:253
-#: pretix_roomsharing/views.py:274 pretix_roomsharing/views.py:374
-#: pretix_roomsharing/views.py:434
+#: pretix_roomsharing/views.py:298 pretix_roomsharing/views.py:320
+#: pretix_roomsharing/views.py:341 pretix_roomsharing/views.py:442
+#: pretix_roomsharing/views.py:502
 msgid "Great, we saved your changes!"
 msgstr "Die Änderungen wurden gespeichert!"
 
-#: pretix_roomsharing/views.py:241
+#: pretix_roomsharing/views.py:308
 #, fuzzy
 #| msgid "You need to leave this room before you can join or create a new one."
 msgid "You must leave your current room before you can join another one."
@@ -712,7 +791,7 @@ msgstr ""
 "Du must dieses Zimmer verlassen, bevor du einem anderen beitreten oder ein "
 "neues erstellen kannst."
 
-#: pretix_roomsharing/views.py:263
+#: pretix_roomsharing/views.py:330
 #, fuzzy
 #| msgid "You need to leave this room before you can join or create a new one."
 msgid "You must leave your current room before you can create one."
@@ -720,101 +799,88 @@ msgstr ""
 "Du must dieses Zimmer verlassen, bevor du einem anderen beitreten oder ein "
 "neues erstellen kannst."
 
-#: pretix_roomsharing/views.py:409
+#: pretix_roomsharing/views.py:477
 msgid "Duplicate room name"
 msgstr "Doppelter Zimmername"
 
-#: pretix_roomsharing/views.py:425
+#: pretix_roomsharing/views.py:493
 #, fuzzy
 #| msgid "The requested room definition does not exist."
 msgid "The requested room does not exist."
 msgstr "Die angefragte Zimmerdefinition existiert nicht."
 
-#: pretix_roomsharing/views.py:501
+#: pretix_roomsharing/views.py:569
 #, fuzzy
 #| msgid "The requested room definition does not exist."
 msgid "The requested room order does not exist."
 msgstr "Die angefragte Zimmerdefinition existiert nicht."
 
-#: pretix_roomsharing/views.py:511
+#: pretix_roomsharing/views.py:579
 #, fuzzy
 #| msgid "The room has been deleted."
 msgid "The order room has been deleted."
 msgstr "Das Zimmer wurde gelöscht."
 
-#: pretix_roomsharing/views.py:562
+#: pretix_roomsharing/views.py:630
 #, fuzzy
 #| msgid "The requested room definition does not exist."
 msgid "The provided order does not exist."
 msgstr "Die angefragte Zimmerdefinition existiert nicht."
 
-#: pretix_roomsharing/views.py:566
+#: pretix_roomsharing/views.py:634
 msgid "The provided order is already assigned to a different room."
 msgstr "Die angegebene Bestellung ist bereits einem anderen Zimmer zugewiesen."
 
-#: pretix_roomsharing/views.py:571
+#: pretix_roomsharing/views.py:639
 msgid "The order has been successfully assigned to the room."
 msgstr "Die Bestellung wurde dem Zimmer erfolgrreich hinzugefügt."
 
-#: pretix_roomsharing/views.py:615 pretix_roomsharing/views.py:650
+#: pretix_roomsharing/views.py:683 pretix_roomsharing/views.py:718
 msgid "We could not save your changes. See below for details."
 msgstr ""
 "Deine Änderungen konnten nicht gespeichert werden. Siehe unten für details."
 
-#: pretix_roomsharing/views.py:621
+#: pretix_roomsharing/views.py:689
 msgid "The new room definition has been created."
 msgstr "Die neue Zimmerdefinition wurde erstellt."
 
-#: pretix_roomsharing/views.py:647 pretix_roomsharing/views.py:672
+#: pretix_roomsharing/views.py:715 pretix_roomsharing/views.py:740
 msgid "The requested room definition does not exist."
 msgstr "Die angefragte Zimmerdefinition existiert nicht."
 
-#: pretix_roomsharing/views.py:680
+#: pretix_roomsharing/views.py:748
 msgid "The selected room definition has been deleted."
 msgstr "Die gewählte Zimmerdefinition wurde bereits gelöscht."
 
-#: pretix_roomsharing/views.py:692
+#: pretix_roomsharing/views.py:760
 msgid "All tickets, total"
 msgstr "Alle tickets, Gesamt"
 
-#: pretix_roomsharing/views.py:700
+#: pretix_roomsharing/views.py:768
 msgid "Tickets Pending"
 msgstr "Ausstehende Tickets"
 
-#: pretix_roomsharing/views.py:708
+#: pretix_roomsharing/views.py:776
 msgid "Tickets in approved orders (regardless of payment status)"
 msgstr "Tickets in genehmigten Bestellungen (unabhängig von Zahlungsstatus)"
 
-#: pretix_roomsharing/views.py:714
+#: pretix_roomsharing/views.py:782
 msgid "Tickets in paid orders"
 msgstr "Tickets in bezahlten Bestellungen"
 
-#: pretix_roomsharing/views.py:721
+#: pretix_roomsharing/views.py:789
 msgid "Tickets in pending orders"
 msgstr "Tickets in ausstehenden Bestellungen"
 
-#: pretix_roomsharing/views.py:729
+#: pretix_roomsharing/views.py:797
 msgid "Tickets in canceled orders (except the ones not chosen in raffle)"
 msgstr "Tickets in stornierten Bestllungen (außer den nicht Verlosten)"
 
-#: pretix_roomsharing/views.py:738
+#: pretix_roomsharing/views.py:806
 msgid "Tickets in canceled and at least partially refunded orders"
 msgstr ""
 "Tickets in stornierten und mindestens teilweise erstatteten Bestellungen"
 
-#: pretix_roomsharing/views.py:753
+#: pretix_roomsharing/views.py:821
 msgid "Tickets denied (not chosen in raffle)"
 msgstr "Tickets abgelehnt (nicht in der Verlosung gewählt)"
-
-#~ msgid "Invalid order room."
-#~ msgstr "Inkonsistente Daten"
-
-#~ msgid "Inconsistent data."
-#~ msgstr "Inkonsistente Daten"
-
-#~ msgid "Invalid room mode."
-#~ msgstr "Ungültiger Zimmermodus"
-
-#~ msgid "This room is full. Please choose another or create a new one."
-#~ msgstr ""
-#~ "Dieses Zimmer ist voll. Bitte wähle ein anderes oder erstelle ein neues."
