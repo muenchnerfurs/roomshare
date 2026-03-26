@@ -582,7 +582,7 @@ msgstr "Tickets die teil eines Zimmers sind."
 
 #: pretix_roomsharing/templates/pretix_roomsharing/fragment_roomform.html:13
 msgid "I want to be assigned a random room"
-msgstr "I möchte einem zufälligen Zimmer zugeordnet werden."
+msgstr "Ich möchte einem zufälligen Zimmer zugeordnet werden."
 
 #: pretix_roomsharing/templates/pretix_roomsharing/fragment_roomform.html:20
 #: pretix_roomsharing/templates/pretix_roomsharing/fragment_roomform.html:83
@@ -595,7 +595,7 @@ msgstr "Ich möchte einem existierenden Zimmer beitreten."
 
 #: pretix_roomsharing/templates/pretix_roomsharing/fragment_roomform.html:54
 msgid "I want to create a new room"
-msgstr "Ich möchte ein neues Zimmer erstllen."
+msgstr "Ich möchte ein neues Zimmer erstellen."
 
 #: pretix_roomsharing/templates/pretix_roomsharing/fragment_roomform.html:76
 msgid "Keep things as is"
