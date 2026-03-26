@@ -255,7 +255,7 @@ class RoomStep(CartMixin, TemplateFlowStep):
             room.room_definition = room_definition
             room.save()
         except Room.DoesNotExist:
-            room = Room.objects.create(event=self.event, room_definition=room_definition, name=cleaned_data["name"], password=cleaned_data["password"], disable_random_extra=False, optout_random_extra=cleaned_data["optout_random_extra"])
+            room = Room.objects.create(event=self.event, room_definition=room_definition, name=cleaned_data["name"], password=cleaned_data["password"], disable_random_extra=False, optout_random_extra=cleaned_data.get("optout_random_extra", False))
             pass
 
         order_room = OrderRoom.objects.create(order=None, cart_id=get_or_create_cart_id(request), room=room, is_admin=True)
