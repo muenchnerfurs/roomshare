@@ -29,6 +29,7 @@ from pretix.presale.signals import (
 from pretix.presale.views import get_cart
 from pretix.presale.views.cart import cart_session
 from pretix.base.signals import register_data_exporters
+from pretix.plugins.ticketoutputpdf.signals import register_fonts
 
 from .checkoutflow import RoomStep
 from .models import OrderRoom, Room
@@ -336,6 +337,18 @@ def room_layout_text_variables(sender, *args, **kwargs):
 @receiver(register_data_exporters, dispatch_uid="room_data_exporter")
 def room_register_data_exporter(sender, **kwargs):
     return RoomExporter
+
+
+@receiver(register_fonts, dispatch_uid="press_start_2p_font")
+def press_start_2p(sender, **kwargs):
+    basepath = "pretix_roomsharing"
+    return {
+        "Press Start 2P": {
+            "regular": {
+                "truetype": basepath + "/PressStart2P-Regular.ttf",
+            }
+        }
+    }
 
 
 try:
