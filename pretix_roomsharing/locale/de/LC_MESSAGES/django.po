@@ -833,7 +833,7 @@ msgstr "Die angegebene Bestellung ist bereits einem anderen Zimmer zugewiesen."
 
 #: pretix_roomsharing/views.py:639
 msgid "The order has been successfully assigned to the room."
-msgstr "Die Bestellung wurde dem Zimmer erfolgrreich hinzugefügt."
+msgstr "Die Bestellung wurde dem Zimmer erfolgreich hinzugefügt."
 
 #: pretix_roomsharing/views.py:683 pretix_roomsharing/views.py:718
 msgid "We could not save your changes. See below for details."
