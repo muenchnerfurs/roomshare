@@ -1,7 +1,9 @@
 from django import forms
+from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from pretix.base.forms import I18nModelForm, SettingsForm
 from pretix.base.pdf import get_variables
+from pretix.base.models import Order
 from pretix.control.forms import ItemMultipleChoiceField
 from pretix_roomsharing.models import RoomDefinition, OrderRoom
 
@@ -29,6 +31,32 @@ class OrderRoomForm(I18nModelForm):
     class Meta:
         fields = []
         model = OrderRoom
+
+
+class OrderRoomCreateForm(forms.Form):
+    room_definition = forms.ModelChoiceField(
+        label=_("Room Definition"),
+        queryset=RoomDefinition.objects.none()
+    )
+
+    order = forms.ModelChoiceField(
+        label=_("Order"),
+        queryset=Order.objects.none()
+    )
+
+    room_name = forms.CharField(
+        label=_("Room Name"),
+    )
+
+    room_password = forms.CharField(
+        label=_("Room Password"),
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.event = kwargs.pop("event")
+        super().__init__(*args, **kwargs)
+        self.fields["room_definition"].queryset = self.event.room_definitions
+        self.fields["order"].queryset = self.event.orders.filter(orderroom__isnull=True)
 
 
 class RoomsharingSettingsForm(SettingsForm):

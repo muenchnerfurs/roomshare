@@ -1,0 +1,18 @@
+{% extends "pretixcontrol/event/base.html" %}
+{% load i18n %}
+{% load eventurl %}
+{% load urlreplace %}
+{% load bootstrap3 %}
+{% block title %}{% trans "Create new room" %}{% endblock %}
+{% block content %}
+	<h1>{% trans "Create new room" %}</h1>
+	<form action="" method="post" class="form-horizontal">
+		{% csrf_token %}
+        {% bootstrap_form form layout='control' %}
+		<div class="form-group submit-group">
+            <button type="submit" class="btn btn-primary btn-plus">
+                {% trans "Create" %}
+            </button>
+		</div>
+	</form>
+{% endblock %}

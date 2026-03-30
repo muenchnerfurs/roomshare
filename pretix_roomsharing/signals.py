@@ -128,7 +128,7 @@ def order_info(sender: Event, order: Order, **kwargs):
 
     # Show link for user to change room
     order_has_room = False
-    if order.meta_info_data["room_mode"] in ["create", "join", "none"]:
+    if order.meta_info_data.get("room_mode", None) in ["create", "join", "none"]:
         order_has_room = True
     ctx["order_has_room"] = order_has_room
 

@@ -24,6 +24,9 @@ class RoomDefinition(LoggedModel):
         unique_together = (("event", "name"),)
         ordering = ("name",)
 
+    def __str__(self):
+        return self.name
+
     def get_valid_room_count(self):
         return OrderRoom.objects.filter(room__room_definition=self).filter((Q(cart_id__isnull=False) & Exists(
             CartPosition.objects.filter(event=self.event, cart_id=OuterRef("cart_id"),

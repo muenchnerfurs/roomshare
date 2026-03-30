@@ -9,7 +9,7 @@ from .views import (
     RoomList,
     SettingsView,
     StatsView, RoomDefinitionList, RoomDefinitionUpdate, RoomDefinitionDelete, RoomDefinitionCreate, RoomRemoveOrder,
-    RoomAddOrder, RandomizeView,
+    RoomAddOrder, RandomizeView, RoomCreate,
 )
 
 urlpatterns = [
@@ -47,6 +47,11 @@ urlpatterns = [
         r"control/event/<str:organizer>/<str:event>/rooms/<int:pk>/delete",
         RoomDelete.as_view(),
         name="event.room.delete",
+    ),
+    path(
+        r"control/event/<str:organizer>/<str:event>/rooms/create",
+        RoomCreate.as_view(),
+        name="event.room.create",
     ),
     path(
         r"control/event/<str:organizer>/<str:event>/rooms/<int:pk>/remove/<str:order_code>/",

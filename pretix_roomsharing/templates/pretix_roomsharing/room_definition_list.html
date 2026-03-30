@@ -6,9 +6,6 @@
 {% block title %}{% trans "Room Definitions" %}{% endblock %}
 {% block content %}
     <h1>{% trans "Room Definitions" %}</h1>
-    <p>
-        Bottom text
-    </p>
     {% csrf_token %}
     <p>
         <a href="{% url "plugins:pretix_roomsharing:event.room_definition.add" organizer=request.event.organizer.slug event=request.event.slug %}" class="btn btn-default"><i class="fa fa-plus"></i> {% trans "Create a new room definition" %}

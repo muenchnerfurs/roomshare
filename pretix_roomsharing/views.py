@@ -30,7 +30,7 @@ from pretix.multidomain.urlreverse import eventreverse
 from pretix.presale.views import EventViewMixin, CartMixin
 from pretix.presale.views.order import OrderDetailMixin
 
-from .forms import RoomDefinitionForm, OrderRoomForm, RoomsharingSettingsForm, RandomizeRoomsConfirmationForm
+from .forms import RoomDefinitionForm, OrderRoomForm, RoomsharingSettingsForm, RandomizeRoomsConfirmationForm, OrderRoomCreateForm
 from .checkoutflow import RoomCreateForm, RoomJoinForm
 from .models import OrderRoom, Room, RoomDefinition
 
@@ -53,6 +53,12 @@ class SettingsView(EventSettingsViewMixin, EventSettingsFormView):
 
 
 class RandomRoomAssignmentError(Exception):
+    def __init__(self, message):
+        self.message = message
+        super().__init__(self.message)
+
+
+class RoomCreateError(Exception):
     def __init__(self, message):
         self.message = message
         super().__init__(self.message)
@@ -553,6 +559,51 @@ class RoomDelete(EventPermissionRequiredMixin, CompatDeleteView):
                 },
             )
         )
+
+
+class RoomCreate(EventPermissionRequiredMixin, FormView):
+    template_name = "pretix_roomsharing/control_order_room_create.html"
+    form_class = OrderRoomCreateForm
+    permission = "can_change_orders"
+
+    @transaction.atomic
+    def create_room(self, form):
+        event = self.request.event
+        cleaned_data = form.cleaned_data
+
+        room_definition = cleaned_data["room_definition"]
+        room_name = cleaned_data["room_name"]
+        order = cleaned_data["order"]
+        password = cleaned_data["room_password"]
+
+        if not room_definition.is_available():
+            raise RoomCreateError(_("No rooms of the selected type are available."))
+
+        room = Room.objects.create(event=event, room_definition=room_definition, name=room_name, password=password)
+        order_room = OrderRoom.objects.create(order=order, room=room, is_admin=True)
+
+        order.meta_info_data = order.meta_info_data | {
+            "room_mode": "create",
+            "room_join": order_room.pk,
+            "room_create": room.pk
+        }
+
+
+    def form_valid(self, form):
+        self.create_room(form)
+        messages.success(self.request, _("The room has been created."))
+        return super().form_valid(form)
+
+    def get_success_url(self) -> str:
+        return reverse('plugins:pretix_roomsharing:event.room.list', kwargs={
+            'organizer': self.request.event.organizer.slug,
+            'event': self.request.event.slug,
+        })
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["event"] = self.request.event
+        return kwargs
 
 
 class RoomRemoveOrder(EventPermissionRequiredMixin, CompatDeleteView):
