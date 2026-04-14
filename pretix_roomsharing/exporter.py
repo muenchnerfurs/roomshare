@@ -15,7 +15,7 @@ class RoomExporter(ListExporter):
         yield headers
 
         for room in self.event.rooms.order_by('room_definition__name'):
-            for occupant in room.orderrooms.order_by('id', '-is_admin'):
+            for occupant in room.orderrooms.filter(order__isnull=False).order_by('id', '-is_admin'):
                 order = occupant.order
                 name = order.all_positions.filter(attendee_name_cached__isnull=False).first().attendee_name_cached
                 yield [order.id, order.code, order.status, name, order.email, room.room_definition.name, room.id, occupant.is_admin]
