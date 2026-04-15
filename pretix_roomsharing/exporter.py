@@ -10,7 +10,7 @@ class RoomExporter(ListExporter):
 
     def iterate_list(self, form_data):
         headers = [
-            _('Order Id'), _('Order Code'), _('Order Status'), _('Customer Name'), _('Order Email'), _('Internal Room Name'), _('Room Id'), _('Is Admin')
+            _('Order Id'), _('Order Code'), _('Order Status'), _('Customer Name'), _('Order Email'), _('Internal Room Name'), _('Room Id'), _('Room Name'), _('Is Admin')
         ]
         yield headers
 
@@ -18,4 +18,4 @@ class RoomExporter(ListExporter):
             for occupant in room.orderrooms.filter(order__isnull=False).order_by('id', '-is_admin'):
                 order = occupant.order
                 name = order.all_positions.filter(attendee_name_cached__isnull=False).first().attendee_name_cached
-                yield [order.id, order.code, order.status, name, order.email, room.room_definition.name, room.id, occupant.is_admin]
+                yield [order.id, order.code, order.status, name, order.email, room.room_definition.name, room.id, room.name, occupant.is_admin]
